@@ -5,20 +5,30 @@ namespace audiosynth
 {
     public class VoiceProvider : ISampleProvider
     {
-        private readonly double frequency;
+        private double frequency;
         private double phase;
         private readonly ADSR adsr;
 
         public WaveFormat WaveFormat { get; }
-        public WaveType Type { get; set; }
+        public WaveType Type { get; }
         public VoiceProvider(double freq, WaveType type)
         {
-            frequency = freq;
+            this.frequency = freq; // assign to instance variable
             WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
-            Type = type; 
-            adsr = new ADSR(WaveFormat.SampleRate);
+            adsr = new ADSR(
+                WaveFormat.SampleRate,
+                attackTime: 0.01f,
+                decayTime: 0.1f,
+                sustainLevel: 0.7f,
+                releaseTime: 0.5f
+            );
         }
 
+        public double Frequency
+        {
+            get { return frequency; }
+            set { frequency = value; }
+        }
         public void Stop()
         {
             adsr.Release();

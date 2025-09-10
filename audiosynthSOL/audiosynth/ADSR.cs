@@ -1,4 +1,6 @@
-﻿namespace audiosynth
+﻿using System;
+
+namespace audiosynth
 {
     public class ADSR
     {
@@ -12,12 +14,12 @@
 
         private float currentValue;
 
-        public ADSR(int sampleRate)
+        public ADSR(int sampleRate, float attackTime, float decayTime, float sustainLevel, float releaseTime)
         {
-            attackRate = 1.0f / (0.1f * sampleRate);
-            decayRate = 1.0f / (0.1f * sampleRate);
-            releaseRate = 1.0f / (0.5f * sampleRate);
-            sustainLevel = 0.7f;
+            attackRate = 1.0f / (attackTime * sampleRate);
+            decayRate = (1.0f - sustainLevel) / (decayTime * sampleRate);
+            releaseRate = sustainLevel / (releaseTime * sampleRate);
+            this.sustainLevel = sustainLevel;
             State = EnvelopeState.Attack;
             currentValue = 0.0f;
         }

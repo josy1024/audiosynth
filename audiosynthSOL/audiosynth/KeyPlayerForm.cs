@@ -10,8 +10,10 @@ namespace audiosynth
     {
         private readonly SynthEngine synthEngine;
 
-        private int currentOctave = 0; // Default to C4, D4, etc.
+        // Tracks the current octave offset from the base (C4)
+        private int currentOctave = 0;
 
+        // Base frequencies for notes without alt modifier
         private readonly Dictionary<Keys, float> baseNoteFrequencies = new Dictionary<Keys, float>
         {
             { Keys.C, 261.63f },
@@ -23,6 +25,7 @@ namespace audiosynth
             { Keys.B, 493.88f }
         };
 
+        // Base frequencies for notes with alt modifier (sharps)
         private readonly Dictionary<Keys, float> baseAltNoteFrequencies = new Dictionary<Keys, float>
         {
             { Keys.C, 277.18f }, // C#
@@ -32,9 +35,12 @@ namespace audiosynth
             { Keys.A, 466.16f }  // A#
         };
 
+        // Tracks keys currently being held down to allow for octave changes
+        private readonly HashSet<Keys> heldKeys = new HashSet<Keys>();
+
+        // For displaying key history
         private readonly ConcurrentQueue<string> keyHistory = new ConcurrentQueue<string>();
         private const int maxHistory = 10;
-        private bool isWaveTypeMode = false;
 
         public KeyPlayerForm()
         {
@@ -44,24 +50,14 @@ namespace audiosynth
             synthEngine = new SynthEngine();
             PopulateWaveTypeComboBox();
             UpdateOctaveLabel();
-            UpdateWaveTypeModeLabel();
         }
 
-        // This method is called from the designer's KeyDown event handler
         private void KeyPlayerForm_KeyDown(object sender, KeyEventArgs e)
         {
-            textBoxFoo.Text = e.KeyCode.ToString();
-
+            // Now, the 'X' key directly cycles the waveform
             if (e.KeyCode == Keys.X)
             {
-                isWaveTypeMode = !isWaveTypeMode;
-                UpdateWaveTypeModeLabel();
-                return;
-            }
-
-            if (isWaveTypeMode)
-            {
-                HandleWaveTypeSelection(e.KeyCode);
+                CycleWaveType();
                 return;
             }
 
@@ -70,6 +66,7 @@ namespace audiosynth
             {
                 currentOctave--;
                 UpdateOctaveLabel();
+                UpdateAllActiveNoteFrequencies(); // Update held notes' frequencies
                 return;
             }
 
@@ -77,19 +74,20 @@ namespace audiosynth
             {
                 currentOctave++;
                 UpdateOctaveLabel();
+                UpdateAllActiveNoteFrequencies(); // Update held notes' frequencies
                 return;
             }
 
-            // Check if a musical note key is being pressed
+            // Check if a musical note key is being pressed and not already held
             bool isMusicalNote = baseNoteFrequencies.ContainsKey(e.KeyCode) || baseAltNoteFrequencies.ContainsKey(e.KeyCode);
 
-            if (isMusicalNote)
+            if (isMusicalNote && !heldKeys.Contains(e.KeyCode))
             {
+                heldKeys.Add(e.KeyCode); // Track the held key
 
                 float frequency = 0;
                 WaveType selectedWaveType = (WaveType)comboBoxWaveType.SelectedIndex;
 
-                // The AdjustFrequencyForOctave method uses the currentOctave value
                 if (e.Alt)
                 {
                     if (baseAltNoteFrequencies.TryGetValue(e.KeyCode, out frequency))
@@ -105,6 +103,9 @@ namespace audiosynth
                     }
                 }
 
+                // Update the last pressed key display
+                textBoxFoo.Text = e.KeyCode.ToString();
+
                 // Update key history
                 string keyName = e.KeyCode.ToString();
                 if (e.Alt) keyName = "Alt+" + keyName;
@@ -118,12 +119,32 @@ namespace audiosynth
             }
         }
 
-        // This method is called from the designer's KeyUp event handler
         private void KeyPlayerForm_KeyUp(object sender, KeyEventArgs e)
         {
-            if (baseNoteFrequencies.ContainsKey(e.KeyCode) || baseAltNoteFrequencies.ContainsKey(e.KeyCode))
+            // Stop the note and remove the key from the held keys set
+            if (heldKeys.Contains(e.KeyCode))
             {
                 synthEngine.NoteOff(e.KeyCode);
+                heldKeys.Remove(e.KeyCode);
+            }
+        }
+
+        // Updates the frequencies of all currently playing notes
+        private void UpdateAllActiveNoteFrequencies()
+        {
+            foreach (var key in heldKeys)
+            {
+                float frequency = 0;
+                if (baseNoteFrequencies.TryGetValue(key, out frequency))
+                {
+                    float newFrequency = AdjustFrequencyForOctave(frequency);
+                    synthEngine.UpdateNoteFrequency(key, newFrequency);
+                }
+                else if (baseAltNoteFrequencies.TryGetValue(key, out frequency))
+                {
+                    float newFrequency = AdjustFrequencyForOctave(frequency);
+                    synthEngine.UpdateNoteFrequency(key, newFrequency);
+                }
             }
         }
 
@@ -138,6 +159,12 @@ namespace audiosynth
             comboBoxWaveType.SelectedIndex = 0;
         }
 
+        private void CycleWaveType()
+        {
+            int nextIndex = (comboBoxWaveType.SelectedIndex + 1) % comboBoxWaveType.Items.Count;
+            comboBoxWaveType.SelectedIndex = nextIndex;
+        }
+
         private void UpdateKeyHistoryDisplay()
         {
             var historyArray = keyHistory.ToArray();
@@ -150,39 +177,10 @@ namespace audiosynth
             int displayOctave = 4 + currentOctave;
             labelOctave.Text = $"Octave: {displayOctave}";
         }
-
-        private void UpdateWaveTypeModeLabel()
-        {
-            labelWaveTypeMode.Text = isWaveTypeMode ? "Mode: Wave Select" : "Mode: Play Notes";
-        }
-
-        private void HandleWaveTypeSelection(Keys key)
-        {
-            switch (key)
-            {
-                case Keys.D1:
-                    comboBoxWaveType.SelectedIndex = 0; // Sine
-                    isWaveTypeMode = false;
-                    break;
-                case Keys.D2:
-                    comboBoxWaveType.SelectedIndex = 1; // Saw
-                    isWaveTypeMode = false;
-                    break;
-                case Keys.D3:
-                    comboBoxWaveType.SelectedIndex = 2; // Square
-                    isWaveTypeMode = false;
-                    break;
-                case Keys.D4:
-                    comboBoxWaveType.SelectedIndex = 3; // Triangle
-                    isWaveTypeMode = false;
-                    break;
-            }
-            UpdateWaveTypeModeLabel();
-        }
-
         private void textBoxFoo_TextChanged(object sender, EventArgs e)
         {
 
         }
+
     }
 }

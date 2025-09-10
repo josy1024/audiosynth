@@ -1,9 +1,7 @@
-﻿using audiosynth;
-using Microsoft.VisualBasic;
-using NAudio.Wave;
+﻿using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using System.Collections.Concurrent;
-using System.Security.AccessControl;
+using System.Windows.Forms;
 
 namespace audiosynth
 {
@@ -44,14 +42,11 @@ namespace audiosynth
             }
         }
 
-        public void StopAllNotes()
+        public void UpdateNoteFrequency(Keys key, float newFrequency)
         {
-            foreach (var key in activeVoices.Keys)
+            if (activeVoices.TryGetValue(key, out var voice))
             {
-                if (activeVoices.TryRemove(key, out var voice))
-                {
-                    voice.Stop();
-                }
+                voice.Frequency = newFrequency;
             }
         }
     }
