@@ -17,10 +17,21 @@ namespace audiosynth
             get { return type; }
             set { type = value; }
         }
-        public VoiceProvider(double freq, WaveType type)
+
+        public float PulseWidth { get; set; } // Add this property
+
+        public double ModulatorFrequency { get; set; }
+        public double ModulatorFrequencyMultiplier { get; set; } = 1.0;
+        public double modulationIndex = 1.7;
+        private double modulatorPhase;
+
+
+        private readonly Random random = new Random();
+        public VoiceProvider(double freq, WaveType type, float pulseWidth = 0.5f)
         {
             this.frequency = freq; // assign to instance variable
             this.type = type;
+            this.PulseWidth = pulseWidth;
             WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
             adsr = new ADSR(
                 WaveFormat.SampleRate,
@@ -67,6 +78,25 @@ namespace audiosynth
                     case WaveType.Triangle:
                         double sawtooth = (phase % 1.0) * 2 - 1;
                         waveSample = (float)(2 * (Math.Abs(sawtooth) - 0.5));
+                        break;
+                    case WaveType.Pulse:
+                        waveSample = (phase % 1.0 < PulseWidth) ? 1.0f : -1.0f;
+                        break;
+                    case WaveType.FM:
+                        double modulatorValue = Math.Sin(2 * Math.PI * modulatorPhase);
+                        double modulatedFrequency = frequency + (modulatorValue * modulationIndex * frequency);
+                        
+                        double modulatedPhaseIncrement = modulatedFrequency / WaveFormat.SampleRate;
+
+                        // FM synthesis uses a sine wave as the carrier
+                        waveSample = (float)Math.Sin(2 * Math.PI * phase);
+                        phase += modulatedPhaseIncrement;
+                        modulatorPhase += this.ModulatorFrequency / WaveFormat.SampleRate;
+                        //modulatorPhase += (frequency * ModulatorFrequencyMultiplier) / WaveFormat.SampleRate;
+
+                        break;
+                    case WaveType.Noise:
+                        waveSample = (float)(random.NextDouble() * 2.0 - 1.0); // Generate a random value between -1 and 1
                         break;
                 }
 

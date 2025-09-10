@@ -21,6 +21,8 @@
             labelWaveTypeMode = new Label();
             textBoxFoo = new TextBox();
             Reset = new Button();
+            ModulatorFrequencyTrackBar = new TrackBar();
+            ((System.ComponentModel.ISupportInitialize)ModulatorFrequencyTrackBar).BeginInit();
             SuspendLayout();
             // 
             // labelOctave
@@ -42,6 +44,7 @@
             comboBoxWaveType.Size = new Size(258, 40);
             comboBoxWaveType.TabIndex = 1;
             comboBoxWaveType.TabStop = false;
+            comboBoxWaveType.KeyPress += comboBoxWaveType_KeyPress;
             // 
             // textBoxHistory
             // 
@@ -81,11 +84,20 @@
             Reset.UseVisualStyleBackColor = true;
             Reset.Click += Reset_Click;
             // 
+            // ModulatorFrequencyTrackBar
+            // 
+            ModulatorFrequencyTrackBar.Location = new Point(1156, 22);
+            ModulatorFrequencyTrackBar.Name = "ModulatorFrequencyTrackBar";
+            ModulatorFrequencyTrackBar.Size = new Size(410, 90);
+            ModulatorFrequencyTrackBar.TabIndex = 5;
+            ModulatorFrequencyTrackBar.Scroll += ModulatorFrequencyTrackBar_Scroll;
+            // 
             // KeyPlayerForm
             // 
             AutoScaleDimensions = new SizeF(13F, 32F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1592, 851);
+            Controls.Add(ModulatorFrequencyTrackBar);
             Controls.Add(Reset);
             Controls.Add(textBoxFoo);
             Controls.Add(labelWaveTypeMode);
@@ -97,6 +109,7 @@
             Text = "KeyPlayerForm";
             KeyDown += KeyPlayerForm_KeyDown;
             KeyUp += KeyPlayerForm_KeyUp;
+            ((System.ComponentModel.ISupportInitialize)ModulatorFrequencyTrackBar).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -107,5 +120,6 @@
         private System.Windows.Forms.Label labelWaveTypeMode;
         private TextBox textBoxFoo;
         private Button Reset;
+        private TrackBar ModulatorFrequencyTrackBar;
     }
 }

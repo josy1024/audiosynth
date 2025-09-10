@@ -89,6 +89,13 @@ namespace audiosynth
             return 0f;
         }
 
+        public void UpdateModulatorFrequency(Keys key, double newModFreq)
+        {
+            if (activeVoices.TryGetValue(key, out var voice))
+            {
+                voice.ModulatorFrequency = newModFreq;
+            }
+        }
         public void UpdateNoteFrequency(Keys key, float newFrequency)
         {
             if (activeVoices.TryGetValue(key, out var voice))

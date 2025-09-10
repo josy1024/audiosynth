@@ -2,9 +2,12 @@ namespace audiosynth
 {
     public enum WaveType
     {
-        Sine,
+        Pulse,
         Saw,
         Square,
-        Triangle
+        Triangle,
+        Sine,
+        Noise,
+        FM
     }
 }

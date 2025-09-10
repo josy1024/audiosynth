@@ -12,7 +12,7 @@ namespace audiosynth
 
         private int currentOctave = 0;
 
-        private readonly Dictionary<Keys, float> baseNoteFrequencies = new Dictionary<Keys, float>
+        private readonly Dictionary<Keys, float> noteFrequencies = new Dictionary<Keys, float>
         {
             { Keys.C, 261.63f },
             { Keys.D, 293.66f },
@@ -20,20 +20,20 @@ namespace audiosynth
             { Keys.F, 349.23f },
             { Keys.G, 392.00f },
             { Keys.A, 440.00f },
-            { Keys.B, 493.88f }
+            { Keys.B, 493.88f },
+             // Sharp notes
+            { Keys.Q, 277.18f }, // C#
+            { Keys.W, 311.13f }, // D#
+            { Keys.V, 369.99f }, // F#
+            { Keys.T, 415.30f }, // G#
+            { Keys.U, 466.16f }  // A#
         };
 
-        private readonly Dictionary<Keys, float> baseAltNoteFrequencies = new Dictionary<Keys, float>
-        {
-            { Keys.C, 277.18f }, // C#
-            { Keys.D, 311.13f }, // D#
-            { Keys.F, 369.99f }, // F#
-            { Keys.G, 415.30f }, // G#
-            { Keys.A, 466.16f }  // A#
-        };
 
         // private readonly HashSet<Keys> heldKeys = new HashSet<Keys>();
-        private readonly HashSet<(Keys key, bool alt)> heldKeys = new HashSet<(Keys, bool)>();
+        // private readonly HashSet<(Keys key, bool alt)> heldKeys = new HashSet<(Keys, bool)>();
+        private HashSet<Keys> heldKeys = new HashSet<Keys>();
+
 
         private readonly ConcurrentQueue<string> keyHistory = new ConcurrentQueue<string>();
         private const int maxHistory = 10;
@@ -46,12 +46,22 @@ namespace audiosynth
             synthEngine = new SynthEngine();
             PopulateWaveTypeComboBox();
             UpdateOctaveLabel();
-        }
 
+            ModulatorFrequencyTrackBar.Minimum = 100;
+            ModulatorFrequencyTrackBar.Maximum = 4400;
+            ModulatorFrequencyTrackBar.Value = 616;
+
+            // Set an initial value within the new range
+        }
+        private void comboBoxWaveType_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // This line tells the ComboBox to ignore the key press
+            e.Handled = true;
+        }
         private void KeyPlayerForm_KeyDown(object sender, KeyEventArgs e)
         {
             float frequency = 0;
-            bool isAlt = e.Alt;
+            bool isAlt = false;
 
             // Corrected: Always get the selected wave type from the ComboBox
             WaveType selectedWaveType = (WaveType)comboBoxWaveType.SelectedItem;
@@ -84,13 +94,13 @@ namespace audiosynth
 
 
 
-            bool isMusicalNote = isAlt ? baseAltNoteFrequencies.TryGetValue(e.KeyCode, out frequency) : baseNoteFrequencies.TryGetValue(e.KeyCode, out frequency);
+            bool isMusicalNote = noteFrequencies.TryGetValue(e.KeyCode, out frequency);
 
 
             if (isMusicalNote)
             {
                 // If a key is already held, update both its frequency and wave type
-                if (heldKeys.Contains(keyId))
+                if (heldKeys.Contains(e.KeyCode))
                 {
                     // Note is already held, update it
                     synthEngine.UpdateNote(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
@@ -99,13 +109,12 @@ namespace audiosynth
                 {
                     // New note, add it and start it
                     synthEngine.NoteOn(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
-                    heldKeys.Add(keyId);
+                    heldKeys.Add(e.KeyCode);
                 }
 
                 textBoxFoo.Text = e.KeyCode.ToString();
 
                 string keyName = e.KeyCode.ToString();
-                if (e.Alt) keyName = "Alt+" + keyName;
 
                 if (keyHistory.Count >= maxHistory)
                 {
@@ -118,11 +127,8 @@ namespace audiosynth
 
         private void KeyPlayerForm_KeyUp(object sender, KeyEventArgs e)
         {
-            var keyId = (e.KeyCode, e.Alt);
-            if (heldKeys.Remove(keyId)) // Remove the key if it was in the set
-            {
-                synthEngine.NoteOff(e.KeyCode);
-            }
+            heldKeys.Remove(e.KeyCode);
+            synthEngine.NoteOff(e.KeyCode);
         }
 
         private void UpdateAllActiveNotes()
@@ -131,22 +137,11 @@ namespace audiosynth
             foreach (var keyId in heldKeys)
             {
                 float frequency = 0;
-                // Use keyId.key and keyId.alt to get the correct frequency
-                if (keyId.alt)
+
+                if (noteFrequencies.TryGetValue(keyId, out frequency))
                 {
-                    if (baseAltNoteFrequencies.TryGetValue(keyId.key, out frequency))
-                    {
-                        float newFrequency = AdjustFrequencyForOctave(frequency);
-                        synthEngine.UpdateNote(keyId.key, newFrequency, currentWaveType);
-                    }
-                }
-                else
-                {
-                    if (baseNoteFrequencies.TryGetValue(keyId.key, out frequency))
-                    {
-                        float newFrequency = AdjustFrequencyForOctave(frequency);
-                        synthEngine.UpdateNote(keyId.key, newFrequency, currentWaveType);
-                    }
+                    float newFrequency = AdjustFrequencyForOctave(frequency);
+                    synthEngine.UpdateNote(keyId, newFrequency, currentWaveType);
                 }
             }
         }
@@ -189,6 +184,23 @@ namespace audiosynth
             heldKeys.Clear();
             textBoxFoo.Text = string.Empty;
             textBoxHistory.Text = string.Empty;
+        }
+
+        private void volumeSlider1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void ModulatorFrequencyTrackBar_Scroll(object sender, EventArgs e)
+        {
+            // The track bar's value will be used as the new modulator frequency
+            double newModFreq = ModulatorFrequencyTrackBar.Value;
+
+            // Update all currently playing notes
+            foreach (var keyId in heldKeys)
+            {
+                synthEngine.UpdateModulatorFrequency(keyId, newModFreq);
+            }
         }
     }
 }
