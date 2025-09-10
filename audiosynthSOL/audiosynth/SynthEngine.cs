@@ -7,8 +7,8 @@ namespace audiosynth
 {
     public class SynthEngine
     {
-        private readonly MixingSampleProvider mixer;
-        private readonly IWavePlayer waveOut;
+        private MixingSampleProvider mixer;
+        private IWavePlayer waveOut;
         private readonly ConcurrentDictionary<Keys, VoiceProvider> activeVoices;
 
         public SynthEngine()
@@ -24,6 +24,34 @@ namespace audiosynth
             activeVoices = new ConcurrentDictionary<Keys, VoiceProvider>();
         }
 
+        public void StopAndDispose()
+        {
+            // Stop all currently playing notes
+            foreach (var voice in activeVoices.Values)
+            {
+                voice.Stop();
+            }
+            activeVoices.Clear();
+
+            // Dispose of the mixer input and the WaveOut device
+            mixer.RemoveAllMixerInputs();
+            waveOut.Stop();
+            waveOut.Dispose();
+        }
+
+        public void Reset()
+        {
+            StopAndDispose();
+
+            // Re-initialize the audio engine
+            var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
+            mixer = new MixingSampleProvider(waveFormat);
+            mixer.ReadFully = true;
+
+            waveOut = new WaveOutEvent();
+            waveOut.Init(mixer);
+            waveOut.Play();
+        }
         public void NoteOn(Keys key, float frequency, WaveType waveType)
         {
             if (!activeVoices.ContainsKey(key))

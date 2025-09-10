@@ -20,6 +20,7 @@
             textBoxHistory = new TextBox();
             labelWaveTypeMode = new Label();
             textBoxFoo = new TextBox();
+            Reset = new Button();
             SuspendLayout();
             // 
             // labelOctave
@@ -69,13 +70,23 @@
             textBoxFoo.Name = "textBoxFoo";
             textBoxFoo.Size = new Size(200, 39);
             textBoxFoo.TabIndex = 0;
-            textBoxFoo.TextChanged += textBoxFoo_TextChanged;
+            // 
+            // Reset
+            // 
+            Reset.Location = new Point(117, 390);
+            Reset.Name = "Reset";
+            Reset.Size = new Size(150, 46);
+            Reset.TabIndex = 4;
+            Reset.Text = "Reset";
+            Reset.UseVisualStyleBackColor = true;
+            Reset.Click += Reset_Click;
             // 
             // KeyPlayerForm
             // 
             AutoScaleDimensions = new SizeF(13F, 32F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1592, 851);
+            Controls.Add(Reset);
             Controls.Add(textBoxFoo);
             Controls.Add(labelWaveTypeMode);
             Controls.Add(textBoxHistory);
@@ -95,5 +106,6 @@
         private System.Windows.Forms.TextBox textBoxHistory;
         private System.Windows.Forms.Label labelWaveTypeMode;
         private TextBox textBoxFoo;
+        private Button Reset;
     }
 }

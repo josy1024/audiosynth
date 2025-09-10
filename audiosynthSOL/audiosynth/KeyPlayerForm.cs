@@ -10,11 +10,8 @@ namespace audiosynth
     {
         private readonly SynthEngine synthEngine;
 
-        // Tracks the current octave offset from the base (C4)
         private int currentOctave = 0;
-        private int currentWaveTypeIndex = 0;
 
-        // Base frequencies for notes without alt modifier
         private readonly Dictionary<Keys, float> baseNoteFrequencies = new Dictionary<Keys, float>
         {
             { Keys.C, 261.63f },
@@ -26,7 +23,6 @@ namespace audiosynth
             { Keys.B, 493.88f }
         };
 
-        // Base frequencies for notes with alt modifier (sharps)
         private readonly Dictionary<Keys, float> baseAltNoteFrequencies = new Dictionary<Keys, float>
         {
             { Keys.C, 277.18f }, // C#
@@ -36,10 +32,9 @@ namespace audiosynth
             { Keys.A, 466.16f }  // A#
         };
 
-        // Tracks keys currently being held down to allow for octave changes
-        private readonly HashSet<Keys> heldKeys = new HashSet<Keys>();
+        // private readonly HashSet<Keys> heldKeys = new HashSet<Keys>();
+        private readonly HashSet<(Keys key, bool alt)> heldKeys = new HashSet<(Keys, bool)>();
 
-        // For displaying key history
         private readonly ConcurrentQueue<string> keyHistory = new ConcurrentQueue<string>();
         private const int maxHistory = 10;
 
@@ -51,24 +46,31 @@ namespace audiosynth
             synthEngine = new SynthEngine();
             PopulateWaveTypeComboBox();
             UpdateOctaveLabel();
-            UpdateWaveTypeLabel();
         }
 
         private void KeyPlayerForm_KeyDown(object sender, KeyEventArgs e)
         {
-            // The 'X' key directly cycles the waveform
+            float frequency = 0;
+            bool isAlt = e.Alt;
+
+            // Corrected: Always get the selected wave type from the ComboBox
+            WaveType selectedWaveType = (WaveType)comboBoxWaveType.SelectedItem;
+
+
+            // Create a unique key identifier
+            var keyId = (e.KeyCode, isAlt);
+
             if (e.KeyCode == Keys.X)
             {
                 CycleWaveType();
                 return;
             }
 
-            // Octave switching with Previous Track / Next Track keys
             if (e.KeyCode == Keys.MediaPreviousTrack)
             {
                 currentOctave--;
                 UpdateOctaveLabel();
-                UpdateAllActiveNoteFrequencies(); // Update held notes' frequencies
+                UpdateAllActiveNotes();
                 return;
             }
 
@@ -76,44 +78,32 @@ namespace audiosynth
             {
                 currentOctave++;
                 UpdateOctaveLabel();
-                UpdateAllActiveNoteFrequencies(); // Update held notes' frequencies
+                UpdateAllActiveNotes();
                 return;
             }
 
-            // Get the frequency and wave type for the pressed key
-            float frequency = 0;
-            WaveType selectedWaveType = (WaveType)Enum.GetValues(typeof(WaveType)).GetValue(currentWaveTypeIndex);
 
-            bool isMusicalNote = false;
-            if (e.Alt)
-            {
-                isMusicalNote = baseAltNoteFrequencies.TryGetValue(e.KeyCode, out frequency);
-            }
-            else
-            {
-                isMusicalNote = baseNoteFrequencies.TryGetValue(e.KeyCode, out frequency);
-            }
 
-            // If a musical note key is pressed
+            bool isMusicalNote = isAlt ? baseAltNoteFrequencies.TryGetValue(e.KeyCode, out frequency) : baseNoteFrequencies.TryGetValue(e.KeyCode, out frequency);
+
+
             if (isMusicalNote)
             {
-                // Check if the key is already held
-                if (heldKeys.Contains(e.KeyCode))
+                // If a key is already held, update both its frequency and wave type
+                if (heldKeys.Contains(keyId))
                 {
-                    // If the key is already held, update its frequency instead of starting a new note
-                    synthEngine.UpdateNoteFrequency(e.KeyCode, AdjustFrequencyForOctave(frequency));
+                    // Note is already held, update it
+                    synthEngine.UpdateNote(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
                 }
                 else
                 {
-                    // If the key is not held, start a new note
-                    heldKeys.Add(e.KeyCode); // Track the held key
+                    // New note, add it and start it
+                    heldKeys.Add(keyId);
                     synthEngine.NoteOn(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
                 }
 
-                // Update the last pressed key display
                 textBoxFoo.Text = e.KeyCode.ToString();
 
-                // Update key history
                 string keyName = e.KeyCode.ToString();
                 if (e.Alt) keyName = "Alt+" + keyName;
 
@@ -128,30 +118,36 @@ namespace audiosynth
 
         private void KeyPlayerForm_KeyUp(object sender, KeyEventArgs e)
         {
-            // Stop the note and remove the key from the held keys set
-            if (heldKeys.Contains(e.KeyCode))
+            var keyId = (e.KeyCode, e.Alt);
+            if (heldKeys.Contains(keyId))
             {
-                synthEngine.NoteOff(e.KeyCode);
-                heldKeys.Remove(e.KeyCode);
+                synthEngine.NoteOff(e.KeyCode); // NoteOff still uses a single key as the VoiceProvider doesn't need the modifier info
+                heldKeys.Remove(keyId);
             }
         }
 
-        // Updates the frequencies of all currently playing notes
-        private void UpdateAllActiveNoteFrequencies()
+        private void UpdateAllActiveNotes()
         {
             WaveType currentWaveType = (WaveType)comboBoxWaveType.SelectedItem;
-            foreach (var key in heldKeys)
+            foreach (var keyId in heldKeys)
             {
                 float frequency = 0;
-                if (baseNoteFrequencies.TryGetValue(key, out frequency))
+                // Use keyId.key and keyId.alt to get the correct frequency
+                if (keyId.alt)
                 {
-                    float newFrequency = AdjustFrequencyForOctave(frequency);
-                    synthEngine.UpdateNote(key, newFrequency, currentWaveType);
+                    if (baseAltNoteFrequencies.TryGetValue(keyId.key, out frequency))
+                    {
+                        float newFrequency = AdjustFrequencyForOctave(frequency);
+                        synthEngine.UpdateNote(keyId.key, newFrequency, currentWaveType);
+                    }
                 }
-                else if (baseAltNoteFrequencies.TryGetValue(key, out frequency))
+                else
                 {
-                    float newFrequency = AdjustFrequencyForOctave(frequency);
-                    synthEngine.UpdateNote(key, newFrequency, currentWaveType);
+                    if (baseNoteFrequencies.TryGetValue(keyId.key, out frequency))
+                    {
+                        float newFrequency = AdjustFrequencyForOctave(frequency);
+                        synthEngine.UpdateNote(keyId.key, newFrequency, currentWaveType);
+                    }
                 }
             }
         }
@@ -169,23 +165,12 @@ namespace audiosynth
 
         private void CycleWaveType()
         {
-            currentWaveTypeIndex = (currentWaveTypeIndex + 1) % comboBoxWaveType.Items.Count;
-            comboBoxWaveType.SelectedIndex = currentWaveTypeIndex;
+            int nextIndex = (comboBoxWaveType.SelectedIndex + 1) % comboBoxWaveType.Items.Count;
+            comboBoxWaveType.SelectedIndex = nextIndex;
 
-            UpdateWaveTypeLabel();
-            UpdateAllActiveNoteWaveTypes();
+            UpdateAllActiveNotes();
         }
 
-        private void UpdateAllActiveNoteWaveTypes()
-        {
-            WaveType newWaveType = (WaveType)comboBoxWaveType.SelectedItem;
-            foreach (var key in heldKeys)
-            {
-                // Get the current frequency from the VoiceProvider
-                float currentFrequency = synthEngine.GetNoteFrequency(key);
-                synthEngine.UpdateNote(key, currentFrequency, newWaveType);
-            }
-        }
         private void UpdateKeyHistoryDisplay()
         {
             var historyArray = keyHistory.ToArray();
@@ -199,15 +184,12 @@ namespace audiosynth
             labelOctave.Text = $"Octave: {displayOctave}";
         }
 
-        private void UpdateWaveTypeLabel()
+        private void Reset_Click(object sender, EventArgs e)
         {
-            string waveTypeName = Enum.GetName(typeof(WaveType), currentWaveTypeIndex);
-            labelWaveTypeMode.Text = $"Wave: {waveTypeName} ({currentWaveTypeIndex})";
+            synthEngine.Reset();
+            heldKeys.Clear();
+            textBoxFoo.Text = string.Empty;
+            textBoxHistory.Text = string.Empty;
         }
-        private void textBoxFoo_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
     }
 }

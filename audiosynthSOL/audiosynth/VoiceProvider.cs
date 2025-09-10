@@ -10,10 +10,17 @@ namespace audiosynth
         private readonly ADSR adsr;
 
         public WaveFormat WaveFormat { get; }
-        public WaveType Type { get; set; }
+        
+        private WaveType type;
+        public WaveType Type
+        {
+            get { return type; }
+            set { type = value; }
+        }
         public VoiceProvider(double freq, WaveType type)
         {
             this.frequency = freq; // assign to instance variable
+            this.type = type;
             WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
             adsr = new ADSR(
                 WaveFormat.SampleRate,
@@ -33,6 +40,7 @@ namespace audiosynth
         {
             adsr.Release();
         }
+        
 
         // In VoiceProvider.cs
 
@@ -45,7 +53,7 @@ namespace audiosynth
             for (int n = 0; n < sampleCount; n++)
             {
                 float waveSample = 0;
-                switch (Type)
+                switch (this.type)
                 {
                     case WaveType.Sine:
                         waveSample = (float)Math.Sin(2 * Math.PI * phase);
@@ -66,6 +74,11 @@ namespace audiosynth
                 buffer[n + offset] = sample;
 
                 phase += phaseIncrement;
+
+                if (phase >= 1.0)
+                {
+                    phase -= 1.0;
+                }
             }
             return sampleCount;
         }
