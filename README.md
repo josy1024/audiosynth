@@ -12,6 +12,6 @@
 ## planned
 
 * octave switching with controlled by previous track and next track
-* UX - simpler user input use with key / waveform switching
+* UX - simpler user input use with key / waveform switching (by pressing x)
 
 # ![Mini Keyboard Example png](doc/mini-keyboard-example.png)
