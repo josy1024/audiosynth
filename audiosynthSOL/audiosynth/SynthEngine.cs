@@ -49,5 +49,13 @@ namespace audiosynth
                 voice.Frequency = newFrequency;
             }
         }
+
+        public void UpdateNoteWaveType(Keys key, WaveType newWaveType)
+        {
+            if (activeVoices.TryGetValue(key, out var voice))
+            {
+                voice.Type = newWaveType;
+            }
+        }
     }
 }

@@ -10,7 +10,7 @@ namespace audiosynth
         private readonly ADSR adsr;
 
         public WaveFormat WaveFormat { get; }
-        public WaveType Type { get; }
+        public WaveType Type { get; set; }
         public VoiceProvider(double freq, WaveType type)
         {
             this.frequency = freq; // assign to instance variable

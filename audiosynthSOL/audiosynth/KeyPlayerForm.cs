@@ -12,6 +12,7 @@ namespace audiosynth
 
         // Tracks the current octave offset from the base (C4)
         private int currentOctave = 0;
+        private int currentWaveTypeIndex = 0;
 
         // Base frequencies for notes without alt modifier
         private readonly Dictionary<Keys, float> baseNoteFrequencies = new Dictionary<Keys, float>
@@ -54,7 +55,7 @@ namespace audiosynth
 
         private void KeyPlayerForm_KeyDown(object sender, KeyEventArgs e)
         {
-            // Now, the 'X' key directly cycles the waveform
+            // The 'X' key directly cycles the waveform
             if (e.KeyCode == Keys.X)
             {
                 CycleWaveType();
@@ -78,29 +79,34 @@ namespace audiosynth
                 return;
             }
 
-            // Check if a musical note key is being pressed and not already held
-            bool isMusicalNote = baseNoteFrequencies.ContainsKey(e.KeyCode) || baseAltNoteFrequencies.ContainsKey(e.KeyCode);
+            // Get the frequency and wave type for the pressed key
+            float frequency = 0;
+            WaveType selectedWaveType = (WaveType)Enum.GetValues(typeof(WaveType)).GetValue(currentWaveTypeIndex);
 
-            if (isMusicalNote && !heldKeys.Contains(e.KeyCode))
+            bool isMusicalNote = false;
+            if (e.Alt)
             {
-                heldKeys.Add(e.KeyCode); // Track the held key
+                isMusicalNote = baseAltNoteFrequencies.TryGetValue(e.KeyCode, out frequency);
+            }
+            else
+            {
+                isMusicalNote = baseNoteFrequencies.TryGetValue(e.KeyCode, out frequency);
+            }
 
-                float frequency = 0;
-                WaveType selectedWaveType = (WaveType)comboBoxWaveType.SelectedIndex;
-
-                if (e.Alt)
+            // If a musical note key is pressed
+            if (isMusicalNote)
+            {
+                // Check if the key is already held
+                if (heldKeys.Contains(e.KeyCode))
                 {
-                    if (baseAltNoteFrequencies.TryGetValue(e.KeyCode, out frequency))
-                    {
-                        synthEngine.NoteOn(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
-                    }
+                    // If the key is already held, update its frequency instead of starting a new note
+                    synthEngine.UpdateNoteFrequency(e.KeyCode, AdjustFrequencyForOctave(frequency));
                 }
                 else
                 {
-                    if (baseNoteFrequencies.TryGetValue(e.KeyCode, out frequency))
-                    {
-                        synthEngine.NoteOn(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
-                    }
+                    // If the key is not held, start a new note
+                    heldKeys.Add(e.KeyCode); // Track the held key
+                    synthEngine.NoteOn(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
                 }
 
                 // Update the last pressed key display
@@ -161,10 +167,20 @@ namespace audiosynth
 
         private void CycleWaveType()
         {
-            int nextIndex = (comboBoxWaveType.SelectedIndex + 1) % comboBoxWaveType.Items.Count;
-            comboBoxWaveType.SelectedIndex = nextIndex;
+            currentWaveTypeIndex = (currentWaveTypeIndex + 1) % comboBoxWaveType.Items.Count;
+            comboBoxWaveType.SelectedIndex = currentWaveTypeIndex;
+
+            UpdateAllActiveNoteWaveTypes();
         }
 
+        private void UpdateAllActiveNoteWaveTypes()
+        {
+            WaveType newWaveType = (WaveType)Enum.GetValues(typeof(WaveType)).GetValue(currentWaveTypeIndex);
+            foreach (var key in heldKeys)
+            {
+                synthEngine.UpdateNoteWaveType(key, newWaveType);
+            }
+        }
         private void UpdateKeyHistoryDisplay()
         {
             var historyArray = keyHistory.ToArray();
