@@ -54,12 +54,13 @@ namespace audiosynth
         }
         public void NoteOn(Keys key, float frequency, WaveType waveType)
         {
-            if (!activeVoices.ContainsKey(key))
-            {
-                var newVoice = new VoiceProvider(frequency, waveType);
-                mixer.AddMixerInput(newVoice);
-                activeVoices.TryAdd(key, newVoice);
-            }
+            // Ensure any existing note for this key is completely stopped
+            NoteOff(key);
+
+            // Create and add the new voice
+            var newVoice = new VoiceProvider(frequency, waveType);
+            mixer.AddMixerInput(newVoice);
+            activeVoices.TryAdd(key, newVoice);
         }
 
         public void NoteOff(Keys key)

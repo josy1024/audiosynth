@@ -98,8 +98,8 @@ namespace audiosynth
                 else
                 {
                     // New note, add it and start it
-                    heldKeys.Add(keyId);
                     synthEngine.NoteOn(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
+                    heldKeys.Add(keyId);
                 }
 
                 textBoxFoo.Text = e.KeyCode.ToString();
@@ -119,10 +119,9 @@ namespace audiosynth
         private void KeyPlayerForm_KeyUp(object sender, KeyEventArgs e)
         {
             var keyId = (e.KeyCode, e.Alt);
-            if (heldKeys.Contains(keyId))
+            if (heldKeys.Remove(keyId)) // Remove the key if it was in the set
             {
-                synthEngine.NoteOff(e.KeyCode); // NoteOff still uses a single key as the VoiceProvider doesn't need the modifier info
-                heldKeys.Remove(keyId);
+                synthEngine.NoteOff(e.KeyCode);
             }
         }
 
