@@ -34,9 +34,13 @@ namespace audiosynth
             adsr.Release();
         }
 
+        // In VoiceProvider.cs
+
         public int Read(float[] buffer, int offset, int sampleCount)
         {
             if (adsr.State == ADSR.EnvelopeState.Idle) return 0;
+
+            double phaseIncrement = frequency / WaveFormat.SampleRate;
 
             for (int n = 0; n < sampleCount; n++)
             {
@@ -44,24 +48,24 @@ namespace audiosynth
                 switch (Type)
                 {
                     case WaveType.Sine:
-                        waveSample = (float)Math.Sin(phase * 2 * Math.PI);
+                        waveSample = (float)Math.Sin(2 * Math.PI * phase);
                         break;
                     case WaveType.Saw:
                         waveSample = (float)(2 * (phase - Math.Floor(0.5 + phase)));
                         break;
                     case WaveType.Square:
-                        //waveSample = phase < 0.5 ? 1.0f : -1.0f;
-                        waveSample = Math.Sin(2 * Math.PI * phase) >= 0 ? 1.0f : -1.0f;
+                        waveSample = (phase % 1.0 < 0.5) ? 1.0f : -1.0f;
                         break;
                     case WaveType.Triangle:
-                        waveSample = (float)(2 * Math.Abs(2 * (phase - Math.Floor(phase + 0.5))) - 1);
+                        double sawtooth = (phase % 1.0) * 2 - 1;
+                        waveSample = (float)(2 * (Math.Abs(sawtooth) - 0.5));
                         break;
                 }
 
                 var sample = waveSample * adsr.GetNextSample();
                 buffer[n + offset] = sample;
 
-                phase += frequency / WaveFormat.SampleRate;
+                phase += phaseIncrement;
             }
             return sampleCount;
         }

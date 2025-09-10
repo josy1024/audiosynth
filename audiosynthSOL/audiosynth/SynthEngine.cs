@@ -42,6 +42,24 @@ namespace audiosynth
             }
         }
 
+        public void UpdateNote(Keys key, float newFrequency, WaveType newWaveType)
+        {
+            if (activeVoices.TryGetValue(key, out var voice))
+            {
+                voice.Frequency = newFrequency;
+                voice.Type = newWaveType;
+            }
+        }
+
+        public float GetNoteFrequency(Keys key)
+        {
+            if (activeVoices.TryGetValue(key, out var voice))
+            {
+                return (float)voice.Frequency;
+            }
+            return 0f;
+        }
+
         public void UpdateNoteFrequency(Keys key, float newFrequency)
         {
             if (activeVoices.TryGetValue(key, out var voice))

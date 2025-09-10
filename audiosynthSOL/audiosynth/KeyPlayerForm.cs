@@ -51,6 +51,7 @@ namespace audiosynth
             synthEngine = new SynthEngine();
             PopulateWaveTypeComboBox();
             UpdateOctaveLabel();
+            UpdateWaveTypeLabel();
         }
 
         private void KeyPlayerForm_KeyDown(object sender, KeyEventArgs e)
@@ -138,18 +139,19 @@ namespace audiosynth
         // Updates the frequencies of all currently playing notes
         private void UpdateAllActiveNoteFrequencies()
         {
+            WaveType currentWaveType = (WaveType)comboBoxWaveType.SelectedItem;
             foreach (var key in heldKeys)
             {
                 float frequency = 0;
                 if (baseNoteFrequencies.TryGetValue(key, out frequency))
                 {
                     float newFrequency = AdjustFrequencyForOctave(frequency);
-                    synthEngine.UpdateNoteFrequency(key, newFrequency);
+                    synthEngine.UpdateNote(key, newFrequency, currentWaveType);
                 }
                 else if (baseAltNoteFrequencies.TryGetValue(key, out frequency))
                 {
                     float newFrequency = AdjustFrequencyForOctave(frequency);
-                    synthEngine.UpdateNoteFrequency(key, newFrequency);
+                    synthEngine.UpdateNote(key, newFrequency, currentWaveType);
                 }
             }
         }
@@ -170,15 +172,18 @@ namespace audiosynth
             currentWaveTypeIndex = (currentWaveTypeIndex + 1) % comboBoxWaveType.Items.Count;
             comboBoxWaveType.SelectedIndex = currentWaveTypeIndex;
 
+            UpdateWaveTypeLabel();
             UpdateAllActiveNoteWaveTypes();
         }
 
         private void UpdateAllActiveNoteWaveTypes()
         {
-            WaveType newWaveType = (WaveType)Enum.GetValues(typeof(WaveType)).GetValue(currentWaveTypeIndex);
+            WaveType newWaveType = (WaveType)comboBoxWaveType.SelectedItem;
             foreach (var key in heldKeys)
             {
-                synthEngine.UpdateNoteWaveType(key, newWaveType);
+                // Get the current frequency from the VoiceProvider
+                float currentFrequency = synthEngine.GetNoteFrequency(key);
+                synthEngine.UpdateNote(key, currentFrequency, newWaveType);
             }
         }
         private void UpdateKeyHistoryDisplay()
@@ -192,6 +197,12 @@ namespace audiosynth
         {
             int displayOctave = 4 + currentOctave;
             labelOctave.Text = $"Octave: {displayOctave}";
+        }
+
+        private void UpdateWaveTypeLabel()
+        {
+            string waveTypeName = Enum.GetName(typeof(WaveType), currentWaveTypeIndex);
+            labelWaveTypeMode.Text = $"Wave: {waveTypeName} ({currentWaveTypeIndex})";
         }
         private void textBoxFoo_TextChanged(object sender, EventArgs e)
         {

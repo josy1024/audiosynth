@@ -40,6 +40,7 @@
             comboBoxWaveType.Name = "comboBoxWaveType";
             comboBoxWaveType.Size = new Size(258, 40);
             comboBoxWaveType.TabIndex = 1;
+            comboBoxWaveType.TabStop = false;
             // 
             // textBoxHistory
             // 
@@ -50,6 +51,7 @@
             textBoxHistory.ReadOnly = true;
             textBoxHistory.Size = new Size(559, 83);
             textBoxHistory.TabIndex = 2;
+            textBoxHistory.TabStop = false;
             // 
             // labelWaveTypeMode
             // 
@@ -66,7 +68,7 @@
             textBoxFoo.Location = new Point(726, 188);
             textBoxFoo.Name = "textBoxFoo";
             textBoxFoo.Size = new Size(200, 39);
-            textBoxFoo.TabIndex = 4;
+            textBoxFoo.TabIndex = 0;
             textBoxFoo.TextChanged += textBoxFoo_TextChanged;
             // 
             // KeyPlayerForm
