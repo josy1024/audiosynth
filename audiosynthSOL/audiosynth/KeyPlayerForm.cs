@@ -52,8 +52,7 @@ namespace audiosynth
         // private readonly HashSet<(Keys key, bool alt)> heldKeys = new HashSet<(Keys, bool)>();
         private HashSet<Keys> heldKeys = new HashSet<Keys>();
 
-
-        private readonly ConcurrentQueue<string> keyHistory = new ConcurrentQueue<string>();
+        private readonly ConcurrentQueue<(string keyName, long timestamp)> keyHistory = new ConcurrentQueue<(string, long)>();
         private const int maxHistory = 10;
         private readonly ConcurrentQueue<NoteCommand> noteCommands = new ConcurrentQueue<NoteCommand>();
         private CancellationTokenSource cts = new CancellationTokenSource();
@@ -61,6 +60,8 @@ namespace audiosynth
         private readonly Dictionary<Keys, Timer> noteOffTimers = new Dictionary<Keys, Timer>();
 
         private readonly HashSet<Keys> _heldKeys = new HashSet<Keys>();
+
+        private readonly System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
 
         public KeyPlayerForm()
         {
@@ -82,6 +83,7 @@ namespace audiosynth
             labelModulationIndex.Text = $"Modulation Index: 1.7"; // Update the label
 
             // Set an initial value within the new range
+            stopwatch.Start();
 
             Task.Run(() => ProcessNoteCommands(cts.Token));
         }
@@ -90,29 +92,30 @@ namespace audiosynth
             cts.Cancel();
         }
 
-        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
-        {
-            const int WM_KEYDOWN = 0x0100;
-            const int WM_KEYUP = 0x0101;
+        //protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        //{
+        //    const int WM_KEYDOWN = 0x0100;
+        //    const int WM_KEYUP = 0x0101;
 
-            if (msg.Msg == WM_KEYDOWN)
-            {
-                // If the key is already in the set, it's a repeat. Return true to stop processing.
-                if (heldKeys.Contains(keyData))
-                {
-                    return true;
-                }
-                // If it's not a repeat, add it to the set.
-                heldKeys.Add(keyData);
-            }
-            else if (msg.Msg == WM_KEYUP)
-            {
-                // The key has been released, so remove it from the set.
-                heldKeys.Remove(keyData);
-            }
+        //    if (msg.Msg == WM_KEYDOWN)
+        //    {
+        //        // If the key is already in the set, it's a repeat. Return true to stop processing.
+        //        if (heldKeys.Contains(keyData))
+        //        {
+        //            return true;
+        //        }
+        //        // If it's not a repeat, add it to the set.
+        //        heldKeys.Add(keyData);
+        //    }
+        //    else if (msg.Msg == WM_KEYUP)
+        //    {
+        //        // The key has been released, so remove it from the set.
+        //        heldKeys.Remove(keyData);
+        //    }
 
-            return base.ProcessCmdKey(ref msg, keyData);
-        }
+        //    return base.ProcessCmdKey(ref msg, keyData);
+        //}
+
         private void PopulateFmMultiplierComboBox()
         {
             // Add common harmonic ratios to the ComboBox
@@ -202,8 +205,6 @@ namespace audiosynth
                 return;
             }
 
-   
-
             if (e.KeyCode == Keys.MediaPreviousTrack)
             {
                 CurrentOctave--;
@@ -250,31 +251,47 @@ namespace audiosynth
                 });
 
                 // Update UI for the new key press
-                textBoxFoo.Text = e.KeyCode.ToString();
+                //textBoxFoo.Text = e.KeyCode.ToString();
                 string keyName = e.KeyCode.ToString();
+                long timestamp = stopwatch.ElapsedMilliseconds;
+
+
                 if (keyHistory.Count >= maxHistory)
                 {
                     keyHistory.TryDequeue(out _);
                 }
-                keyHistory.Enqueue(keyName);
+                keyHistory.Enqueue((keyName, timestamp));
                 UpdateKeyHistoryDisplay();
             }
         }
         private void KeyPlayerForm_KeyUp(object sender, KeyEventArgs e)
         {
-            // The ProcessCmdKey override handles removing the key from the heldKeys set.
-            // We just need to check if it was a valid musical key.
-            if (noteFrequencies.ContainsKey(e.KeyCode))
+            // Remove the key from the heldKeys set.
+            if (heldKeys.Remove(e.KeyCode))
             {
-                // Start a new timer for the released key
-                var timer = new Timer();
-                timer.Interval = 50; // Delay in milliseconds (e.g., 50ms for a quick tap)
-                timer.Tag = e.KeyCode; // Store the key code for later use
-                timer.Tick += NoteOffTimer_Tick; // Assign the event handler
+                if (noteFrequencies.ContainsKey(e.KeyCode))
+                {
+                    // Start a new timer for the released key
+                    var timer = new Timer();
+                    timer.Interval = 150; // Delay in milliseconds (e.g., 50ms for a quick tap)
+                    timer.Tag = e.KeyCode; // Store the key code for later use
+                    timer.Tick += NoteOffTimer_Tick; // Assign the event handler
 
-                noteOffTimers[e.KeyCode] = timer; // Store the timer in the dictionary
-                timer.Start();
+                    noteOffTimers[e.KeyCode] = timer; // Store the timer in the dictionary
+                    timer.Start();
+                }
             }
+
+            string keyName = e.KeyCode.ToString() + " (up)";
+            long timestamp = stopwatch.ElapsedMilliseconds;
+
+            if (keyHistory.Count >= maxHistory)
+            {
+                keyHistory.TryDequeue(out _);
+            }
+            keyHistory.Enqueue((keyName, timestamp));
+            UpdateKeyHistoryDisplay();
+
         }
 
         // Inside KeyPlayerForm.cs
@@ -340,9 +357,9 @@ namespace audiosynth
 
         private void UpdateKeyHistoryDisplay()
         {
-            var historyArray = keyHistory.ToArray();
-            Array.Reverse(historyArray);
-            textBoxHistory.Text = string.Join(" - ", historyArray);
+            var historyArray = keyHistory.ToArray().Reverse();
+            var historyLines = historyArray.Select(item => $"{item.keyName} at {item.timestamp}ms");
+            textBoxHistory.Text = string.Join(Environment.NewLine, historyLines);
         }
 
         private void UpdateOctaveLabel()
@@ -355,7 +372,7 @@ namespace audiosynth
         {
             synthEngine.Reset();
             heldKeys.Clear();
-            textBoxFoo.Text = string.Empty;
+            //textBoxFoo.Text = string.Empty;
             textBoxHistory.Text = string.Empty;
         }
 
