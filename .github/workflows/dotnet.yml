@@ -31,3 +31,17 @@ jobs:
     - name: Test
       working-directory: audiosynthSOL/audiosynth
       run: dotnet test --no-build --verbosity normal
+
+    - name: Publish
+      run: dotnet publish audiosynthSOL/audiosynth/audiosynth.csproj --configuration Release --output ./publish
+
+    - name: Create ZIP for distribution
+      run: |
+        cd publish
+        Compress-Archive -Path * -DestinationPath ../audiosynth.zip
+
+    - name: Upload ZIP artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: audiosynth-distribution
+        path: audiosynth.zip
