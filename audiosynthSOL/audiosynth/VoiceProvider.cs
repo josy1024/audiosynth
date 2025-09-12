@@ -3,12 +3,16 @@ using System;
 using System.Security.AccessControl;
 namespace audiosynth
 {
-    public class VoiceProvider : ISampleProvider
+    public class VoiceProvider : ISampleProvider, IDisposable
     {
         private double frequency;
         private double phase;
         private readonly ADSR adsr;
 
+        public bool IsFinished()
+        {
+            return adsr.State == ADSR.EnvelopeState.Idle;
+        }
         public WaveFormat WaveFormat { get; }
         
         private WaveType type;
@@ -17,12 +21,16 @@ namespace audiosynth
             get { return type; }
             set { type = value; }
         }
-
+        public void Dispose()
+        {
+            // No unmanaged resources to dispose of in this class, but the method is required
+        }
         public float PulseWidth { get; set; } // Add this property
 
         public double ModulatorFrequency { get; set; }
         public double ModulatorFrequencyMultiplier { get; set; } = 1.0;
-        public double modulationIndex = 1.7;
+        public double ModulationIndex { get; set; } = 1.0;
+
         private double modulatorPhase;
 
 
@@ -35,7 +43,7 @@ namespace audiosynth
             WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
             adsr = new ADSR(
                 WaveFormat.SampleRate,
-                attackTime: 0.01f,
+                attackTime: 0.0001f,
                 decayTime: 0.1f,
                 sustainLevel: 0.7f,
                 releaseTime: 0.5f
@@ -83,16 +91,18 @@ namespace audiosynth
                         waveSample = (phase % 1.0 < PulseWidth) ? 1.0f : -1.0f;
                         break;
                     case WaveType.FM:
-                        double modulatorValue = Math.Sin(2 * Math.PI * modulatorPhase);
-                        double modulatedFrequency = frequency + (modulatorValue * modulationIndex * frequency);
-                        
-                        double modulatedPhaseIncrement = modulatedFrequency / WaveFormat.SampleRate;
+                        // 1. Calculate the modulator frequency based on the carrier and the multiplier.
+                        double modulatorFreq = frequency * ModulatorFrequencyMultiplier;
 
-                        // FM synthesis uses a sine wave as the carrier
-                        waveSample = (float)Math.Sin(2 * Math.PI * phase);
-                        phase += modulatedPhaseIncrement;
-                        modulatorPhase += this.ModulatorFrequency / WaveFormat.SampleRate;
-                        //modulatorPhase += (frequency * ModulatorFrequencyMultiplier) / WaveFormat.SampleRate;
+                        // 2. Modulate the carrier's phase, not its frequency. This is a common and more stable FM implementation.
+                        double modulatedPhase = (phase + ModulationIndex * Math.Sin(2 * Math.PI * modulatorPhase));
+
+                        // 3. Generate the final audio sample from the modulated phase.
+                        waveSample = (float)Math.Sin(2 * Math.PI * modulatedPhase);
+
+                        // 4. Update the phases for the next sample.
+                        phase += frequency / WaveFormat.SampleRate;
+                        modulatorPhase += modulatorFreq / WaveFormat.SampleRate;
 
                         break;
                     case WaveType.Noise:
@@ -112,5 +122,6 @@ namespace audiosynth
             }
             return sampleCount;
         }
+
     }
 }

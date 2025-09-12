@@ -23,7 +23,12 @@
             Reset = new Button();
             ModulatorFrequencyTrackBar = new TrackBar();
             label1 = new Label();
+            modulationIndexTrackBar = new TrackBar();
+            labelModulationIndex = new Label();
+            comboBoxFmMultiplier = new ComboBox();
+            labelFmMultiplier = new Label();
             ((System.ComponentModel.ISupportInitialize)ModulatorFrequencyTrackBar).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)modulationIndexTrackBar).BeginInit();
             SuspendLayout();
             // 
             // labelOctave
@@ -91,7 +96,8 @@
             ModulatorFrequencyTrackBar.Location = new Point(622, 10);
             ModulatorFrequencyTrackBar.Margin = new Padding(2, 1, 2, 1);
             ModulatorFrequencyTrackBar.Name = "ModulatorFrequencyTrackBar";
-            ModulatorFrequencyTrackBar.Size = new Size(221, 45);
+            ModulatorFrequencyTrackBar.Orientation = Orientation.Vertical;
+            ModulatorFrequencyTrackBar.Size = new Size(45, 169);
             ModulatorFrequencyTrackBar.TabIndex = 5;
             ModulatorFrequencyTrackBar.Scroll += ModulatorFrequencyTrackBar_Scroll;
             // 
@@ -106,11 +112,53 @@
             label1.Text = "x = Instrument";
             label1.Click += label1_Click;
             // 
+            // modulationIndexTrackBar
+            // 
+            modulationIndexTrackBar.Location = new Point(789, 10);
+            modulationIndexTrackBar.Maximum = 100;
+            modulationIndexTrackBar.Name = "modulationIndexTrackBar";
+            modulationIndexTrackBar.Orientation = Orientation.Vertical;
+            modulationIndexTrackBar.Size = new Size(45, 169);
+            modulationIndexTrackBar.TabIndex = 7;
+            modulationIndexTrackBar.Scroll += modulationIndexTrackBar_Scroll;
+            // 
+            // labelModulationIndex
+            // 
+            labelModulationIndex.AutoSize = true;
+            labelModulationIndex.Location = new Point(699, 194);
+            labelModulationIndex.Name = "labelModulationIndex";
+            labelModulationIndex.Size = new Size(122, 15);
+            labelModulationIndex.TabIndex = 8;
+            labelModulationIndex.Text = "labelModulationIndex";
+            // 
+            // comboBoxFmMultiplier
+            // 
+            comboBoxFmMultiplier.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxFmMultiplier.FormattingEnabled = true;
+            comboBoxFmMultiplier.Location = new Point(712, 222);
+            comboBoxFmMultiplier.Name = "comboBoxFmMultiplier";
+            comboBoxFmMultiplier.Size = new Size(121, 23);
+            comboBoxFmMultiplier.TabIndex = 9;
+            comboBoxFmMultiplier.SelectedIndexChanged += comboBoxFmMultiplier_SelectedIndexChanged;
+            // 
+            // labelFmMultiplier
+            // 
+            labelFmMultiplier.AutoSize = true;
+            labelFmMultiplier.Location = new Point(712, 257);
+            labelFmMultiplier.Name = "labelFmMultiplier";
+            labelFmMultiplier.Size = new Size(100, 15);
+            labelFmMultiplier.TabIndex = 10;
+            labelFmMultiplier.Text = "labelFmMultiplier";
+            // 
             // KeyPlayerForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(857, 399);
+            Controls.Add(labelFmMultiplier);
+            Controls.Add(comboBoxFmMultiplier);
+            Controls.Add(labelModulationIndex);
+            Controls.Add(modulationIndexTrackBar);
             Controls.Add(label1);
             Controls.Add(ModulatorFrequencyTrackBar);
             Controls.Add(Reset);
@@ -124,6 +172,7 @@
             KeyDown += KeyPlayerForm_KeyDown;
             KeyUp += KeyPlayerForm_KeyUp;
             ((System.ComponentModel.ISupportInitialize)ModulatorFrequencyTrackBar).EndInit();
+            ((System.ComponentModel.ISupportInitialize)modulationIndexTrackBar).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -136,5 +185,9 @@
         private Button Reset;
         private TrackBar ModulatorFrequencyTrackBar;
         private Label label1;
+        private TrackBar modulationIndexTrackBar;
+        private Label labelModulationIndex;
+        private ComboBox comboBoxFmMultiplier;
+        private Label labelFmMultiplier;
     }
 }

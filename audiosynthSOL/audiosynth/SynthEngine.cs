@@ -11,6 +11,8 @@ namespace audiosynth
         private IWavePlayer waveOut;
         private readonly ConcurrentDictionary<Keys, VoiceProvider> activeVoices;
 
+        private readonly ConcurrentBag<VoiceProvider> voicesInRelease = new ConcurrentBag<VoiceProvider>();
+
         public SynthEngine()
         {
             var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
@@ -52,13 +54,16 @@ namespace audiosynth
             waveOut.Init(mixer);
             waveOut.Play();
         }
-        public void NoteOn(Keys key, float frequency, WaveType waveType)
-        {
-            // Ensure any existing note for this key is completely stopped
+        public void NoteOn(Keys key, float frequency, WaveType waveType, double modulationIndex, double fmMultiplier)
+        {  // Ensure any existing note for this key is completely stopped
             NoteOff(key);
 
             // Create and add the new voice
-            var newVoice = new VoiceProvider(frequency, waveType);
+            var newVoice = new VoiceProvider(frequency, waveType)
+            {
+                ModulationIndex = modulationIndex,
+                ModulatorFrequencyMultiplier = fmMultiplier
+            };
             mixer.AddMixerInput(newVoice);
             activeVoices.TryAdd(key, newVoice);
         }
@@ -67,7 +72,8 @@ namespace audiosynth
         {
             if (activeVoices.TryRemove(key, out var voice))
             {
-                voice.Stop();
+                voice.Stop(); // Sets ADSR to Release state
+                voicesInRelease.Add(voice);
             }
         }
 
@@ -109,6 +115,49 @@ namespace audiosynth
             if (activeVoices.TryGetValue(key, out var voice))
             {
                 voice.Type = newWaveType;
+            }
+        }
+
+        public void UpdateAllVoicesFmMultiplier(double multiplier)
+        {
+            foreach (var voice in activeVoices.Values)
+            {
+                voice.ModulatorFrequencyMultiplier = multiplier;
+            }
+        }
+
+        public void UpdateAllVoicesModulationIndex(double index)
+        {
+            foreach (var voice in activeVoices.Values)
+            {
+                voice.ModulationIndex = index;
+            }
+        }
+
+        public void RemoveVoice(VoiceProvider voice)
+        {
+            mixer.RemoveMixerInput(voice);
+            voice.Dispose(); // Best practice
+        }
+
+        // Inside SynthEngine.cs
+        public void CleanupReleasedVoices()
+        {
+            var finishedVoices = new List<VoiceProvider>();
+            foreach (var voice in voicesInRelease)
+            {
+                if (voice.IsFinished()) // You will need to add this IsFinished method to VoiceProvider
+                {
+                    finishedVoices.Add(voice);
+                }
+            }
+            foreach (var voice in finishedVoices)
+            {
+                if (voicesInRelease.TryTake(out _)) // Attempt to remove from the bag
+                {
+                    // This voice is finished and should be removed from the mixer
+                    mixer.RemoveMixerInput(voice);
+                }
             }
         }
     }

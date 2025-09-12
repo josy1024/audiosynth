@@ -5,7 +5,9 @@ namespace audiosynth
         NoteOn,
         NoteOff,
         UpdateNote,
-        UpdateModulator
+        UpdateModulator,
+        UpdateFmMultiplier, // New
+        UpdateModulationIndex // New
     }
 
     public class NoteCommand
@@ -14,6 +16,11 @@ namespace audiosynth
         public Keys KeyCode { get; set; }
         public float Frequency { get; set; }
         public WaveType WaveType { get; set; }
+
+        public double Value { get; set; } // 
         public double ModulatorFrequency { get; set; }
+        public double ModulationIndex { get; set; }
+        public double FmMultiplier { get; set; }
+
     }
 }
