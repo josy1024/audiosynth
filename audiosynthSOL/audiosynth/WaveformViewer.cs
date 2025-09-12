@@ -40,22 +40,7 @@ namespace audiosynth
                 }
             }
         }
-        // Method to receive new audio samples
-        //public void AddSample(float sample)
-        //{
-        //    if (waveformData == null || dataIndex >= waveformData.Length)
-        //    {
-        //        // The buffer is full or not ready, so we'll start over.
-        //        dataIndex = 0;
-        //        // The Invalidate() call triggers a repaint of the control.
-        //        Invalidate();
-        //    }
 
-        //    waveformData[dataIndex] = sample;
-        //    dataIndex++;
-        //}
-
-        // In WaveformViewer.cs
 
         public void AddSamples(float[] buffer, int offset, int count)
         {
@@ -65,27 +50,41 @@ namespace audiosynth
                 return;
             }
 
-            // Make sure you don't copy more samples than the buffer can hold.
-            int samplesToCopy = Math.Min(count, waveformData.Length);
-
-            // Copy the data from the NAudio buffer to our drawing buffer.
-            Array.Copy(buffer, offset, waveformData, 0, samplesToCopy);
-
-            float gain = 0.8f;
-
-            for (int i = 0; i < samplesToCopy; i++)
+            // Find a zero-crossing point to stabilize the waveform display.
+            int zeroCrossingIndex = -1;
+            for (int i = 1; i < count; i++)
             {
-                waveformData[i] = buffer[offset + i] * gain;
-
-                // Clamping the value between -1.0 and 1.0 to prevent it from going off-screen
-                waveformData[i] = Math.Clamp(waveformData[i], -1.0f, 1.0f);
+                // A zero-crossing occurs when the sign of the sample changes.
+                if (buffer[offset + i - 1] < 0 && buffer[offset + i] >= 0)
+                {
+                    zeroCrossingIndex = i;
+                    break;
+                }
             }
 
-            // This tells the drawing loop how many samples it has to work with.
-            dataIndex = samplesToCopy;
+            // If a zero-crossing is found, copy the data from that point.
+            if (zeroCrossingIndex != -1)
+            {
+                // Determine how many samples to copy after the zero-crossing.
+                int samplesToCopy = Math.Min(count - zeroCrossingIndex, waveformData.Length);
 
-            // Force a redraw of the control.
-            Invalidate();
+                // This is the recommended gain value. It provides good visibility without excessive clipping.
+                float gain = 1.0f; // A gain of 1.0f is a good starting point. Adjust as needed.
+
+                for (int i = 0; i < samplesToCopy; i++)
+                {
+                    float sampleValue = buffer[offset + zeroCrossingIndex + i] * gain;
+
+                    // Clamp the value to the visible range [-1.0, 1.0].
+                    waveformData[i] = Math.Clamp(sampleValue, -1.0f, 1.0f);
+                }
+
+                // This tells the drawing loop how many samples it has to work with.
+                dataIndex = samplesToCopy;
+
+                // Force a redraw of the control.
+                Invalidate();
+            }
         }
 
         // In WaveformViewer.cs
