@@ -21,8 +21,13 @@ jobs:
       with:
         dotnet-version: 8.0.x
     - name: Restore dependencies
+      working-directory: audiosynthSOL/audiosynth
       run: dotnet restore
+
     - name: Build
+      working-directory: audiosynthSOL/audiosynth
       run: dotnet build --no-restore
+
     - name: Test
+      working-directory: audiosynthSOL/audiosynth
       run: dotnet test --no-build --verbosity normal

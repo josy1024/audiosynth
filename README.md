@@ -17,3 +17,6 @@
 
 
 # ![Mini Keyboard Example png](doc/mini-keyboard-example.png)
+
+
+[CSPROJ](audiosynthSOL/audiosynth/audiosynth.csproj)
