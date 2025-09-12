@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace audiosynth
 {
@@ -10,7 +12,22 @@ namespace audiosynth
     {
         private readonly SynthEngine synthEngine;
 
-        private int currentOctave = 0;
+        // private int currentOctave = 0;
+        private int _currentOctave;
+
+        public int CurrentOctave
+        {
+            get => _currentOctave;
+            set
+            {
+                if (value < -4)
+                    _currentOctave = -4;
+                else if (value > 20)
+                    _currentOctave = 20;
+                else
+                    _currentOctave = value;
+            }
+        }
 
         private readonly Dictionary<Keys, float> noteFrequencies = new Dictionary<Keys, float>
         {
@@ -37,6 +54,8 @@ namespace audiosynth
 
         private readonly ConcurrentQueue<string> keyHistory = new ConcurrentQueue<string>();
         private const int maxHistory = 10;
+        private readonly ConcurrentQueue<NoteCommand> noteCommands = new ConcurrentQueue<NoteCommand>();
+        private CancellationTokenSource cts = new CancellationTokenSource();
 
         public KeyPlayerForm()
         {
@@ -52,7 +71,40 @@ namespace audiosynth
             ModulatorFrequencyTrackBar.Value = 616;
 
             // Set an initial value within the new range
+
+            Task.Run(() => ProcessNoteCommands(cts.Token));
         }
+        private void KeyPlayerForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            cts.Cancel();
+        }
+
+        private void ProcessNoteCommands(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (noteCommands.TryDequeue(out NoteCommand command))
+                {
+                    switch (command.Action)
+                    {
+                        case NoteAction.NoteOn:
+                            synthEngine.NoteOn(command.KeyCode, command.Frequency, command.WaveType);
+                            break;
+                        case NoteAction.NoteOff:
+                            synthEngine.NoteOff(command.KeyCode);
+                            break;
+                        case NoteAction.UpdateNote:
+                            synthEngine.UpdateNote(command.KeyCode, command.Frequency, command.WaveType);
+                            break;
+                    }
+                }
+                else
+                {
+                    Thread.Sleep(1);
+                }
+            }
+        }
+
         private void comboBoxWaveType_KeyPress(object sender, KeyPressEventArgs e)
         {
             // This line tells the ComboBox to ignore the key press
@@ -60,16 +112,15 @@ namespace audiosynth
         }
         private void KeyPlayerForm_KeyDown(object sender, KeyEventArgs e)
         {
-            float frequency = 0;
-            bool isAlt = false;
+            // Ignore key repeat events
+            // Windows Forms KeyEventArgs does not have IsRepeat.
+            // To prevent repeats, check if the key is already in heldKeys.
+            if (heldKeys.Contains(e.KeyCode))
+            {
+                return;
+            }
 
-            // Corrected: Always get the selected wave type from the ComboBox
-            WaveType selectedWaveType = (WaveType)comboBoxWaveType.SelectedItem;
-
-
-            // Create a unique key identifier
-            var keyId = (e.KeyCode, isAlt);
-
+            // Handle non-musical keys first
             if (e.KeyCode == Keys.X)
             {
                 CycleWaveType();
@@ -78,7 +129,7 @@ namespace audiosynth
 
             if (e.KeyCode == Keys.MediaPreviousTrack)
             {
-                currentOctave--;
+                CurrentOctave--;
                 UpdateOctaveLabel();
                 UpdateAllActiveNotes();
                 return;
@@ -86,36 +137,32 @@ namespace audiosynth
 
             if (e.KeyCode == Keys.MediaNextTrack)
             {
-                currentOctave++;
+                CurrentOctave++;
                 UpdateOctaveLabel();
                 UpdateAllActiveNotes();
                 return;
             }
 
-
-
-            bool isMusicalNote = noteFrequencies.TryGetValue(e.KeyCode, out frequency);
-
-
-            if (isMusicalNote)
+            // Process musical notes
+            if (noteFrequencies.TryGetValue(e.KeyCode, out float baseFrequency))
             {
-                // If a key is already held, update both its frequency and wave type
-                if (heldKeys.Contains(e.KeyCode))
+                // Only enqueue a new command if the key isn't already held
+                if (heldKeys.Add(e.KeyCode))
                 {
-                    // Note is already held, update it
-                    synthEngine.UpdateNote(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
-                }
-                else
-                {
-                    // New note, add it and start it
-                    synthEngine.NoteOn(e.KeyCode, AdjustFrequencyForOctave(frequency), selectedWaveType);
-                    heldKeys.Add(e.KeyCode);
+                    float frequency = AdjustFrequencyForOctave(baseFrequency);
+                    WaveType selectedWaveType = (WaveType)comboBoxWaveType.SelectedItem;
+                    noteCommands.Enqueue(new NoteCommand
+                    {
+                        Action = NoteAction.NoteOn,
+                        KeyCode = e.KeyCode,
+                        Frequency = frequency,
+                        WaveType = selectedWaveType
+                    });
                 }
 
+                // UI updates can happen here without blocking
                 textBoxFoo.Text = e.KeyCode.ToString();
-
                 string keyName = e.KeyCode.ToString();
-
                 if (keyHistory.Count >= maxHistory)
                 {
                     keyHistory.TryDequeue(out _);
@@ -124,31 +171,42 @@ namespace audiosynth
                 UpdateKeyHistoryDisplay();
             }
         }
-
         private void KeyPlayerForm_KeyUp(object sender, KeyEventArgs e)
         {
-            heldKeys.Remove(e.KeyCode);
-            synthEngine.NoteOff(e.KeyCode);
+            // Only enqueue a NoteOff if the key was actually being tracked as held
+            if (heldKeys.Remove(e.KeyCode))
+            {
+                noteCommands.Enqueue(new NoteCommand
+                {
+                    Action = NoteAction.NoteOff,
+                    KeyCode = e.KeyCode
+                });
+            }
         }
+
 
         private void UpdateAllActiveNotes()
         {
             WaveType currentWaveType = (WaveType)comboBoxWaveType.SelectedItem;
-            foreach (var keyId in heldKeys)
+            foreach (var key in heldKeys)
             {
-                float frequency = 0;
-
-                if (noteFrequencies.TryGetValue(keyId, out frequency))
+                if (noteFrequencies.TryGetValue(key, out float baseFrequency))
                 {
-                    float newFrequency = AdjustFrequencyForOctave(frequency);
-                    synthEngine.UpdateNote(keyId, newFrequency, currentWaveType);
+                    float newFrequency = AdjustFrequencyForOctave(baseFrequency);
+                    noteCommands.Enqueue(new NoteCommand
+                    {
+                        Action = NoteAction.UpdateNote,
+                        KeyCode = key,
+                        Frequency = newFrequency,
+                        WaveType = currentWaveType
+                    });
                 }
             }
         }
 
         private float AdjustFrequencyForOctave(float baseFreq)
         {
-            return (float)(baseFreq * Math.Pow(2, currentOctave));
+            return (float)(baseFreq * Math.Pow(2, CurrentOctave));
         }
 
         private void PopulateWaveTypeComboBox()
@@ -174,7 +232,7 @@ namespace audiosynth
 
         private void UpdateOctaveLabel()
         {
-            int displayOctave = 4 + currentOctave;
+            int displayOctave = 4 + CurrentOctave;
             labelOctave.Text = $"Octave: {displayOctave}";
         }
 
@@ -201,6 +259,11 @@ namespace audiosynth
             {
                 synthEngine.UpdateModulatorFrequency(keyId, newModFreq);
             }
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }
