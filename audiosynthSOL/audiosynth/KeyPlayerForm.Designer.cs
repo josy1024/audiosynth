@@ -28,6 +28,7 @@
             labelFmMultiplier = new Label();
             FM = new Label();
             Instrument = new Label();
+            waveformViewer = new WaveformViewer();
             ((System.ComponentModel.ISupportInitialize)ModulatorFrequencyTrackBar).BeginInit();
             ((System.ComponentModel.ISupportInitialize)modulationIndexTrackBar).BeginInit();
             SuspendLayout();
@@ -55,7 +56,7 @@
             // 
             // textBoxHistory
             // 
-            textBoxHistory.Location = new Point(14, 97);
+            textBoxHistory.Location = new Point(12, 220);
             textBoxHistory.Multiline = true;
             textBoxHistory.Name = "textBoxHistory";
             textBoxHistory.ReadOnly = true;
@@ -86,7 +87,7 @@
             // 
             // ModulatorFrequencyTrackBar
             // 
-            ModulatorFrequencyTrackBar.Location = new Point(360, 168);
+            ModulatorFrequencyTrackBar.Location = new Point(498, 280);
             ModulatorFrequencyTrackBar.Margin = new Padding(2, 1, 2, 1);
             ModulatorFrequencyTrackBar.Name = "ModulatorFrequencyTrackBar";
             ModulatorFrequencyTrackBar.Orientation = Orientation.Vertical;
@@ -161,11 +162,21 @@
             Instrument.TabIndex = 12;
             Instrument.Text = "Instrument";
             // 
+            // waveformViewer
+            // 
+            waveformViewer.BackColor = Color.Black;
+            waveformViewer.ForeColor = Color.LimeGreen;
+            waveformViewer.Location = new Point(14, 82);
+            waveformViewer.Name = "waveformViewer";
+            waveformViewer.Size = new Size(512, 120);
+            waveformViewer.TabIndex = 13;
+            // 
             // KeyPlayerForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(857, 399);
+            ClientSize = new Size(857, 487);
+            Controls.Add(waveformViewer);
             Controls.Add(Instrument);
             Controls.Add(FM);
             Controls.Add(labelFmMultiplier);
@@ -202,5 +213,6 @@
         private Label labelFmMultiplier;
         private Label FM;
         private Label Instrument;
+        private WaveformViewer waveformViewer;
     }
 }

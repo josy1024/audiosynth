@@ -68,7 +68,7 @@ namespace audiosynth
             InitializeComponent();
             this.Text = "Synth Player";
             this.KeyPreview = true;
-            synthEngine = new SynthEngine();
+            synthEngine = new SynthEngine(this.waveformViewer);
             PopulateWaveTypeComboBox();
             PopulateFmMultiplierComboBox();
             UpdateOctaveLabel();
@@ -191,6 +191,8 @@ namespace audiosynth
         private void KeyPlayerForm_KeyDown(object sender, KeyEventArgs e)
         {
             // Handle special function keys first.
+
+            //Console.WriteLine("key: "+ e.KeyCode);
             if (e.KeyCode == Keys.X)
             {
                 CycleWaveType();

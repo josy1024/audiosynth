@@ -13,14 +13,14 @@ namespace audiosynth
 
         private readonly ConcurrentBag<VoiceProvider> voicesInRelease = new ConcurrentBag<VoiceProvider>();
 
-        public SynthEngine()
+        public SynthEngine(WaveformViewer viewer)
         {
             var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
             mixer = new MixingSampleProvider(waveFormat);
             mixer.ReadFully = true;
 
             waveOut = new WaveOutEvent();
-            waveOut.Init(mixer);
+            waveOut.Init(new VisualizationSampleProvider(mixer, viewer));
             waveOut.Play();
 
             activeVoices = new ConcurrentDictionary<Keys, VoiceProvider>();
