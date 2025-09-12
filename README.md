@@ -15,8 +15,8 @@
 
 ## planned
 
-
 # ![Mini Keyboard Example png](doc/mini-keyboard-example.png)
 
+[CHANGES]
 
 [CSPROJ](audiosynthSOL/audiosynth/audiosynth.csproj)
