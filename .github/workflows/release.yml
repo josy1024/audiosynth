@@ -26,10 +26,9 @@ jobs:
     - name: Publish
       run: dotnet publish audiosynthSOL/audiosynth/audiosynth.csproj --configuration Release --output ./publish
 
-    - name: Create ZIP
+    - name: Create ZIP for distribution
       run: |
-        cd publish
-        Compress-Archive -Path * -DestinationPath ../audiosynth.zip
+        Compress-Archive -Path ./publish/* -DestinationPath audiosynth.zip
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
@@ -39,7 +38,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload ZIP to Release
+    - name: Upload ZIP to GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         files: audiosynth.zip
