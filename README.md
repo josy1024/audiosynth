@@ -1,7 +1,11 @@
-# autiosynth
+# audiosynth
 
-* a simple keyboard press audio generator ...
-![Audio Synth Player](doc/audioSynthPlayer.png)
+* audiosynth is a simple  keyboard pressed audio tone generator
+* it uses simple software synthisizer technics creating audio with the Naudio Library
+
+* [CHANGELOG](CHANGELOG.md)
+
+![FRONTEND: Audio Synth Player](doc/audioSynthPlayer.png)
 
 ## features
 
@@ -15,8 +19,21 @@
 
 ## planned
 
+* keyboard tone mapping config to json file (key, desc, frequency)
+* LFO
+* json Configs for ADSR
+* track/loop function (loop templates)
+* multi-language config (german+english)
 
-# ![Mini Keyboard Example png](doc/mini-keyboard-example.png)
+## Input Device
 
+* Computer-Keyboard Inputs
+![Mini Keyboard Example png](doc/mini-keyboard-example.png)
 
-[CSPROJ](audiosynthSOL/audiosynth/audiosynth.csproj)
+## CODE Core Components
+
+* [Project CSPROJ](audiosynthSOL/audiosynth/audiosynth.csproj)
+* [ADSR: Attack, Decay, Sustain, Release](audiosynthSOL/audiosynth/ADSR.cs)
+* [VoideProvider Fuctions: Saw, Square, Triangle,Sine, Noise, FM](audiosynthSOL/audiosynth/VoiceProvider.cs)
+
+gggg
