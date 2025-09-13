@@ -30,7 +30,6 @@
 * Computer-Keyboard Inputs
 ![Mini Keyboard Example png](doc/mini-keyboard-example.png)
 
-[CHANGES]
 ## CODE Core Components
 
 * [Project CSPROJ](audiosynthSOL/audiosynth/audiosynth.csproj)
