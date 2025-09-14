@@ -28,6 +28,7 @@
 
 ## planned
 
+* GUI: link to project
 * keyboard tone mapping config to json file (key, desc, frequency)
 * maybe? change tone not on button more on wheel
 * want: easyer select and change instruments/VoideProvider
