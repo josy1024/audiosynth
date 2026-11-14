@@ -32,15 +32,13 @@ jobs:
         run: dotnet test --no-build --verbosity normal
 
       - name: Publish
-        run: dotnet publish audiosynthSOL/audiosynth/audiosynth.csproj --configuration Release --output ./publish
+        run: dotnet publish audiosynthSOL/audiosynth/audiosynth.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true --output ./publish
 
       - name: Create ZIP for distribution
-        run: |
-          cd publish
-          Compress-Archive -Path * -DestinationPath ../audiosynth.zip
+        run: Compress-Archive -Path ./publish/* -DestinationPath ./audiosynth-win-x64.zip
 
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: audiosynth-distribution
-          path: audiosynth.zip
+          name: audiosynth-win-x64
+          path: audiosynth-win-x64.zip
