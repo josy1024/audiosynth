@@ -1,5 +1,6 @@
 # autiosynth
 
+* v0.0.4
 * v0.0.3 Acid Bass Groovebox & Subtractive Sound Shaping
   * Subtractive Synth Engine with PolyBLEP anti-aliased Sawtooth & Sub-Oscillator (-12st)
   * 24 dB/oct Resonant State Variable Low-Pass Filter (SVF) with soft saturation
