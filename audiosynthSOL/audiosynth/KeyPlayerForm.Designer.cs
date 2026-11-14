@@ -27,20 +27,21 @@
             Reset = new Button();
             labelWaveTypeMode = new Label();
             
-            // Group 1: Synth Sound Shaping (Row 1: Cutoff, Res, EnvDepth, EnvDecay; Row 2: Sub1, Sub2, Release)
+            // Group 1: Synth Sound Shaping (Row 1: Cutoff, Res, EnvDepth, EnvDecay; Row 2: Sub1Mix+Pitch, Sub2Mix+Pitch, Release)
             grpSynth = new GroupBox();
             knobCutoff = new KnobControl();
             knobResonance = new KnobControl();
             knobEnvMod = new KnobControl();
             knobFilterDecay = new KnobControl();
             knobSub1Mix = new KnobControl();
+            knobSub1Pitch = new KnobControl();
             knobSub2Mix = new KnobControl();
+            knobSub2Pitch = new KnobControl();
             knobAmpRelease = new KnobControl();
             lblSub1Wave = new Label();
             cboSub1Wave = new ComboBox();
             lblSub2Wave = new Label();
             cboSub2Wave = new ComboBox();
-            lblKnobDescription = new Label();
 
             // Group 2: Step Sequencer & Arpeggiator
             grpSequencer = new GroupBox();
@@ -241,17 +242,18 @@
             grpSynth.Controls.Add(knobEnvMod);
             grpSynth.Controls.Add(knobFilterDecay);
             grpSynth.Controls.Add(knobSub1Mix);
+            grpSynth.Controls.Add(knobSub1Pitch);
             grpSynth.Controls.Add(knobSub2Mix);
+            grpSynth.Controls.Add(knobSub2Pitch);
             grpSynth.Controls.Add(knobAmpRelease);
             grpSynth.Controls.Add(lblSub1Wave);
             grpSynth.Controls.Add(cboSub1Wave);
             grpSynth.Controls.Add(lblSub2Wave);
             grpSynth.Controls.Add(cboSub2Wave);
-            grpSynth.Controls.Add(lblKnobDescription);
             grpSynth.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             grpSynth.Location = new Point(14, 138);
             grpSynth.Name = "grpSynth";
-            grpSynth.Size = new Size(325, 400);
+            grpSynth.Size = new Size(325, 290);
             grpSynth.TabIndex = 11;
             grpSynth.TabStop = false;
             grpSynth.Text = "1. Sound Shaping (Right-Click Knob to Bypass)";
@@ -314,61 +316,87 @@
 
             // Row 2: 2 Sub-Mix Knobs + Amp Release
             knobSub1Mix.Location = new Point(18, 122);
-            knobSub1Mix.Size = new Size(88, 88);
+            knobSub1Mix.Size = new Size(68, 80);
             knobSub1Mix.Minimum = 0f;
             knobSub1Mix.Maximum = 100f;
             knobSub1Mix.Value = 0f; // 0% clean start
             knobSub1Mix.DefaultValue = 0f;
-            knobSub1Mix.Title = "SUB 1 (-12st)";
+            knobSub1Mix.Title = "SUB1 MIX";
             knobSub1Mix.ValueFormat = "{0:F0}%";
             knobSub1Mix.ArcColor = Color.DodgerBlue;
-            knobSub1Mix.Description = "Sub-Oscillator 1 Mix (-1 Octave / -12 semitones). Right-click to mute.";
+            knobSub1Mix.Description = "Sub-Oscillator 1 Mix. Right-click to mute.";
             knobSub1Mix.ValueChanged += knobSub1Mix_ValueChanged;
             knobSub1Mix.BypassChanged += knobSub1Mix_BypassChanged;
             knobSub1Mix.DescriptionHovered += OnKnobHovered;
 
-            knobSub2Mix.Location = new Point(118, 122);
-            knobSub2Mix.Size = new Size(88, 88);
+            knobSub1Pitch.Location = new Point(90, 122);
+            knobSub1Pitch.Size = new Size(68, 80);
+            knobSub1Pitch.Minimum = -24f;
+            knobSub1Pitch.Maximum = 24f;
+            knobSub1Pitch.Value = -12f; // Default: -1 octave
+            knobSub1Pitch.DefaultValue = -12f;
+            knobSub1Pitch.Title = "SUB1 PITCH";
+            knobSub1Pitch.ValueFormat = "{0:+0;-0;0} st";
+            knobSub1Pitch.ArcColor = Color.CornflowerBlue;
+            knobSub1Pitch.Description = "Sub-Oscillator 1 Pitch: -24 to +24 semitones (-12 = one octave below).";
+            knobSub1Pitch.ValueChanged += knobSub1Pitch_ValueChanged;
+            knobSub1Pitch.DescriptionHovered += OnKnobHovered;
+
+            knobSub2Mix.Location = new Point(170, 122);
+            knobSub2Mix.Size = new Size(68, 80);
             knobSub2Mix.Minimum = 0f;
             knobSub2Mix.Maximum = 100f;
             knobSub2Mix.Value = 0f; // 0% clean start
             knobSub2Mix.DefaultValue = 0f;
-            knobSub2Mix.Title = "SUB 2 (-24st)";
+            knobSub2Mix.Title = "SUB2 MIX";
             knobSub2Mix.ValueFormat = "{0:F0}%";
             knobSub2Mix.ArcColor = Color.DodgerBlue;
-            knobSub2Mix.Description = "Sub-Oscillator 2 Mix (-2 Octaves / -24 semitones). Right-click to mute.";
+            knobSub2Mix.Description = "Sub-Oscillator 2 Mix. Right-click to mute.";
             knobSub2Mix.ValueChanged += knobSub2Mix_ValueChanged;
             knobSub2Mix.BypassChanged += knobSub2Mix_BypassChanged;
             knobSub2Mix.DescriptionHovered += OnKnobHovered;
 
-            knobAmpRelease.Location = new Point(220, 122);
-            knobAmpRelease.Size = new Size(88, 88);
+            knobSub2Pitch.Location = new Point(242, 122);
+            knobSub2Pitch.Size = new Size(68, 80);
+            knobSub2Pitch.Minimum = -24f;
+            knobSub2Pitch.Maximum = 24f;
+            knobSub2Pitch.Value = -24f; // Default: -2 octaves
+            knobSub2Pitch.DefaultValue = -24f;
+            knobSub2Pitch.Title = "SUB2 PITCH";
+            knobSub2Pitch.ValueFormat = "{0:+0;-0;0} st";
+            knobSub2Pitch.ArcColor = Color.CornflowerBlue;
+            knobSub2Pitch.Description = "Sub-Oscillator 2 Pitch: -24 to +24 semitones (-24 = two octaves below).";
+            knobSub2Pitch.ValueChanged += knobSub2Pitch_ValueChanged;
+            knobSub2Pitch.DescriptionHovered += OnKnobHovered;
+
+            knobAmpRelease.Location = new Point(130, 210);
+            knobAmpRelease.Size = new Size(68, 80);
             knobAmpRelease.Minimum = 0.02f;
             knobAmpRelease.Maximum = 0.80f;
             knobAmpRelease.Value = 0.12f;
             knobAmpRelease.DefaultValue = 0.12f;
-            knobAmpRelease.Title = "AMP RELEASE";
+            knobAmpRelease.Title = "AMP REL";
             knobAmpRelease.ValueFormat = "{0:F2} s";
             knobAmpRelease.ArcColor = Color.SpringGreen;
             knobAmpRelease.Description = "Amplitude Release: Fade-out time after releasing key.";
             knobAmpRelease.ValueChanged += knobAmpRelease_ValueChanged;
             knobAmpRelease.DescriptionHovered += OnKnobHovered;
 
-            // Sub Waveform Selectors
+            // Sub Waveform Selectors (row 3, below pitch knobs)
             lblSub1Wave.AutoSize = true;
             lblSub1Wave.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
             lblSub1Wave.ForeColor = Color.DarkSlateBlue;
-            lblSub1Wave.Location = new Point(14, 218);
+            lblSub1Wave.Location = new Point(14, 212);
             lblSub1Wave.Name = "lblSub1Wave";
             lblSub1Wave.Size = new Size(95, 12);
-            lblSub1Wave.Text = "Sub 1 (-1 Oct Wave):";
+            lblSub1Wave.Text = "Sub 1 Wave:";
 
             cboSub1Wave.DropDownStyle = ComboBoxStyle.DropDownList;
             cboSub1Wave.Font = new Font("Segoe UI", 8F);
             cboSub1Wave.FormattingEnabled = true;
-            cboSub1Wave.Location = new Point(14, 234);
+            cboSub1Wave.Location = new Point(14, 226);
             cboSub1Wave.Name = "cboSub1Wave";
-            cboSub1Wave.Size = new Size(130, 21);
+            cboSub1Wave.Size = new Size(108, 21);
             cboSub1Wave.TabIndex = 8;
             cboSub1Wave.TabStop = false;
             cboSub1Wave.SelectedIndexChanged += cboSub1Wave_SelectedIndexChanged;
@@ -376,32 +404,20 @@
             lblSub2Wave.AutoSize = true;
             lblSub2Wave.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
             lblSub2Wave.ForeColor = Color.DarkSlateBlue;
-            lblSub2Wave.Location = new Point(160, 218);
+            lblSub2Wave.Location = new Point(216, 212);
             lblSub2Wave.Name = "lblSub2Wave";
             lblSub2Wave.Size = new Size(95, 12);
-            lblSub2Wave.Text = "Sub 2 (-2 Oct Wave):";
+            lblSub2Wave.Text = "Sub 2 Wave:";
 
             cboSub2Wave.DropDownStyle = ComboBoxStyle.DropDownList;
             cboSub2Wave.Font = new Font("Segoe UI", 8F);
             cboSub2Wave.FormattingEnabled = true;
-            cboSub2Wave.Location = new Point(160, 234);
+            cboSub2Wave.Location = new Point(216, 226);
             cboSub2Wave.Name = "cboSub2Wave";
-            cboSub2Wave.Size = new Size(130, 21);
+            cboSub2Wave.Size = new Size(100, 21);
             cboSub2Wave.TabIndex = 9;
             cboSub2Wave.TabStop = false;
             cboSub2Wave.SelectedIndexChanged += cboSub2Wave_SelectedIndexChanged;
-
-            // Live Description / Tooltip Bar
-            lblKnobDescription.BackColor = Color.FromArgb(240, 244, 250);
-            lblKnobDescription.BorderStyle = BorderStyle.FixedSingle;
-            lblKnobDescription.Font = new Font("Segoe UI", 8F);
-            lblKnobDescription.ForeColor = Color.FromArgb(50, 60, 75);
-            lblKnobDescription.Location = new Point(10, 268);
-            lblKnobDescription.Name = "lblKnobDescription";
-            lblKnobDescription.Padding = new Padding(6);
-            lblKnobDescription.Size = new Size(305, 122);
-            lblKnobDescription.TabIndex = 10;
-            lblKnobDescription.Text = "💡 Quick Guide:\r\n* Clean Start: Pure raw Saw wave, sub-mixes at 0%, chorus OFF.\r\n* Row 1: Cutoff, Resonance, and the 2 Envelope knobs (Depth & Decay).\r\n* Right-Click any knob to BYPASS it completely (zero impact on wave).";
 
             // -------------------------------------------------------------
             // GROUP 2: STEP SEQUENCER & ARPEGGIATOR
@@ -787,13 +803,14 @@
         private KnobControl knobEnvMod;
         private KnobControl knobFilterDecay;
         private KnobControl knobSub1Mix;
+        private KnobControl knobSub1Pitch;
         private KnobControl knobSub2Mix;
+        private KnobControl knobSub2Pitch;
         private KnobControl knobAmpRelease;
         private Label lblSub1Wave;
         private ComboBox cboSub1Wave;
         private Label lblSub2Wave;
         private ComboBox cboSub2Wave;
-        private Label lblKnobDescription;
 
         private GroupBox grpSequencer;
         private Button btnSeqPlayStop;

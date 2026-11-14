@@ -484,6 +484,11 @@ namespace audiosynth
             synthEngine.BassVoice.Sub1Bypassed = knobSub1Mix.IsBypassed;
         }
 
+        private void knobSub1Pitch_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Sub1PitchSemitones = knobSub1Pitch.Value;
+        }
+
         private void knobSub2Mix_ValueChanged(object? sender, EventArgs e)
         {
             synthEngine.BassVoice.Sub2Mix = knobSub2Mix.Value / 100.0f;
@@ -492,6 +497,11 @@ namespace audiosynth
         private void knobSub2Mix_BypassChanged(object? sender, EventArgs e)
         {
             synthEngine.BassVoice.Sub2Bypassed = knobSub2Mix.IsBypassed;
+        }
+
+        private void knobSub2Pitch_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Sub2PitchSemitones = knobSub2Pitch.Value;
         }
 
         private void knobAmpRelease_ValueChanged(object? sender, EventArgs e)
@@ -694,10 +704,8 @@ namespace audiosynth
 
         private void OnKnobHovered(object? sender, string description)
         {
-            if (InvokeRequired)
-                BeginInvoke(new Action(() => lblKnobDescription.Text = description));
-            else
-                lblKnobDescription.Text = description;
+            // Show description as semi-transparent overlay on the spectrum viewer
+            spectrumViewer.ShowTooltip(description);
         }
 
         // Legacy compatibility stubs

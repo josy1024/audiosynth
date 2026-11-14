@@ -64,6 +64,19 @@ namespace audiosynth
             set => oscillator.Sub2Waveform = value;
         }
 
+        // Sub pitch offsets in semitones (-24..+24)
+        public float Sub1PitchSemitones
+        {
+            get => oscillator.Sub1PitchSemitones;
+            set => oscillator.Sub1PitchSemitones = Math.Clamp(value, -24f, 24f);
+        }
+
+        public float Sub2PitchSemitones
+        {
+            get => oscillator.Sub2PitchSemitones;
+            set => oscillator.Sub2PitchSemitones = Math.Clamp(value, -24f, 24f);
+        }
+
         // Envelope timings
         public float FilterAttack
         {

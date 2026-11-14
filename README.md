@@ -28,17 +28,7 @@
 
 ## planned
 
-* GUI: link to project
-* keyboard tone mapping config to json file (key, desc, frequency)
-* maybe? change tone not on button more on wheel
-* want: easyer select and change instruments/VoideProvider
-* json Configs for ADSR
-* focus vs Field of View
-* LFO Filter
-* track/loop function (loop templates) ? - maybe not: lmms?
-* multi-language config (german+english)
-* kind of recorder?
-* new instruments?
+* [ROADMAP](ROADMAP.md)
 
 ## Input Device
 
@@ -50,5 +40,3 @@
 * [Project CSPROJ](audiosynthSOL/audiosynth/audiosynth.csproj)
 * [ADSR: Attack, Decay, Sustain, Release](audiosynthSOL/audiosynth/ADSR.cs)
 * [VoideProvider Fuctions: Saw, Square, Triangle, Sine, Noise, FM](audiosynthSOL/audiosynth/VoiceProvider.cs)
-
-

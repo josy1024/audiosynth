@@ -19,13 +19,15 @@ namespace audiosynth
 
         public float PulseWidth { get; set; } = 0.5f;
 
-        // Sub 1: -1 Octave (-12 semitones, f / 2)
+        // Sub 1: pitch offset in semitones (-24..+24), default -12 (one octave below)
         public float Sub1Mix { get; set; } = 0.0f; // 0% by default for pure clean saw!
         public SubOscWaveType Sub1Waveform { get; set; } = SubOscWaveType.CopyPrimary;
+        public float Sub1PitchSemitones { get; set; } = -12f; // -12 = one octave below
 
-        // Sub 2: -2 Octaves (-24 semitones, f / 4)
+        // Sub 2: pitch offset in semitones (-24..+24), default -24 (two octaves below)
         public float Sub2Mix { get; set; } = 0.0f; // 0% by default for pure clean saw!
         public SubOscWaveType Sub2Waveform { get; set; } = SubOscWaveType.CopyPrimary;
+        public float Sub2PitchSemitones { get; set; } = -24f; // -24 = two octaves below
 
         public double ModulatorFrequencyMultiplier { get; set; } = 1.0;
         public double ModulationIndex { get; set; } = 1.5;
@@ -53,10 +55,11 @@ namespace audiosynth
             // 1. Primary Waveform
             double sample = GenerateWave(Waveform, phase, dt);
 
-            // 2. Sub-Oscillator 1 (-1 Octave, f/2)
+            // 2. Sub-Oscillator 1 — user-defined semitone offset (-24..+24)
             if (Sub1Mix > 0.001f)
             {
-                double subDt1 = dt * 0.5;
+                double sub1Ratio = Math.Pow(2.0, Sub1PitchSemitones / 12.0);
+                double subDt1 = Math.Clamp(dt * sub1Ratio, 0.0001, 0.499);
                 double sub1 = GenerateSubSample(Sub1Waveform, subPhase1, subDt1);
                 sample = (sample * (1.0f - Sub1Mix * 0.4f)) + (sub1 * Sub1Mix);
 
@@ -64,10 +67,11 @@ namespace audiosynth
                 if (subPhase1 >= 1.0) subPhase1 -= 1.0;
             }
 
-            // 3. Sub-Oscillator 2 (-2 Octaves, f/4)
+            // 3. Sub-Oscillator 2 — user-defined semitone offset (-24..+24)
             if (Sub2Mix > 0.001f)
             {
-                double subDt2 = dt * 0.25;
+                double sub2Ratio = Math.Pow(2.0, Sub2PitchSemitones / 12.0);
+                double subDt2 = Math.Clamp(dt * sub2Ratio, 0.0001, 0.499);
                 double sub2 = GenerateSubSample(Sub2Waveform, subPhase2, subDt2);
                 sample = (sample * (1.0f - Sub2Mix * 0.4f)) + (sub2 * Sub2Mix);
 
