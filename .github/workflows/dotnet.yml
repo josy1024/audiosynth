@@ -5,43 +5,42 @@ name: .NET
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
-
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
-    - name: Restore dependencies
-      working-directory: audiosynthSOL/audiosynth
-      run: dotnet restore
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore dependencies
+        working-directory: audiosynthSOL/audiosynth
+        run: dotnet restore
 
-    - name: Build
-      working-directory: audiosynthSOL/audiosynth
-      run: dotnet build --no-restore
+      - name: Build
+        working-directory: audiosynthSOL/audiosynth
+        run: dotnet build --no-restore
 
-    - name: Test
-      working-directory: audiosynthSOL/audiosynth
-      run: dotnet test --no-build --verbosity normal
+      - name: Test
+        working-directory: audiosynthSOL/audiosynth
+        run: dotnet test --no-build --verbosity normal
 
-    - name: Publish
-      run: dotnet publish audiosynthSOL/audiosynth/audiosynth.csproj --configuration Release --output ./publish
+      - name: Publish
+        run: dotnet publish audiosynthSOL/audiosynth/audiosynth.csproj --configuration Release --output ./publish
 
-    - name: Create ZIP for distribution
-      run: |
-        cd publish
-        Compress-Archive -Path * -DestinationPath ../audiosynth.zip
+      - name: Create ZIP for distribution
+        run: |
+          cd publish
+          Compress-Archive -Path * -DestinationPath ../audiosynth.zip
 
-    - name: Upload ZIP artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: audiosynth-distribution
-        path: audiosynth.zip
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: audiosynth-distribution
+          path: audiosynth.zip
