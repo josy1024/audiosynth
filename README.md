@@ -13,7 +13,7 @@
 ## why
 
 * sound playground for me and the kids
-* i like coding :-) improve make c# .net8 coding skills
+* i like coding :-) improve make c# .net10 coding skills
 * test code generation, test github workflows
 
 ## features

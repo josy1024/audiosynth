@@ -1,117 +1,140 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace audiosynth
 {
-    // WaveformViewer.cs (create a new UserControl)
-
+    /// <summary>
+    /// Oscilloscope visualizer styled after modern hardware/software synths (as seen in Image 2):
+    /// - Rich royal blue background
+    /// - Bright electric cyan/white waveform trace with anti-aliasing
+    /// - Triggered timebase showing ~8-12 full wave cycles across the screen
+    /// - Full vertical amplitude scaling
+    /// </summary>
     public partial class WaveformViewer : UserControl
     {
-        // Change the field to not be readonly so it can be resized
-        private float[] waveformData = null;
-        private int dataIndex = 0;
+        private float[]? displayPoints = null;
+        private readonly float[] sampleHistory = new float[8192];
+        private int historyWriteIndex = 0;
 
         public WaveformViewer()
         {
             InitializeComponent();
-            DoubleBuffered = true; // Prevents flickering
-            waveformData = new float[512];
+            DoubleBuffered = true;
+            displayPoints = new float[325];
         }
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
-
-            // Check for null or if the width has changed.
-            if (waveformData == null || waveformData.Length != Width)
+            if (Width > 0)
             {
-                // Only create the array if the width is valid.
-                if (Width > 0)
-                {
-                    waveformData = new float[Width];
-                    dataIndex = 0; // Reset the index after resizing
-                }
+                displayPoints = new float[Width];
             }
         }
 
-
-        public void AddSamples(float[] buffer, int offset, int count)
+        public void AddSamples(float[] buffer, int offset, int count, int channels = 1)
         {
-            // Check if the waveformData array is null or has no size.
-            if (waveformData == null || waveformData.Length == 0)
+            if (buffer == null || count <= 0) return;
+
+            int stride = Math.Max(1, channels);
+
+            // Copy incoming samples to ring history buffer
+            for (int i = 0; i < count; i += stride)
             {
-                return;
+                sampleHistory[historyWriteIndex] = buffer[offset + i];
+                historyWriteIndex = (historyWriteIndex + 1) % sampleHistory.Length;
             }
 
-            // Find a zero-crossing point to stabilize the waveform display.
-            int zeroCrossingIndex = -1;
-            for (int i = 1; i < count; i++)
+            if (displayPoints == null || displayPoints.Length == 0) return;
+
+            // Search backwards from historyWriteIndex for a positive zero-crossing
+            int searchStart = historyWriteIndex - 1;
+            if (searchStart < 0) searchStart += sampleHistory.Length;
+
+            int zeroCrossIndex = -1;
+            int maxSearch = Math.Min(4096, sampleHistory.Length - 100);
+
+            for (int i = 0; i < maxSearch; i++)
             {
-                // A zero-crossing occurs when the sign of the sample changes.
-                if (buffer[offset + i - 1] < 0 && buffer[offset + i] >= 0)
+                int idx = (searchStart - i + sampleHistory.Length) % sampleHistory.Length;
+                int prevIdx = (idx - 1 + sampleHistory.Length) % sampleHistory.Length;
+
+                if (sampleHistory[prevIdx] < 0f && sampleHistory[idx] >= 0f)
                 {
-                    zeroCrossingIndex = i;
+                    zeroCrossIndex = idx;
                     break;
                 }
             }
 
-            // If a zero-crossing is found, copy the data from that point.
-            if (zeroCrossingIndex != -1)
+            if (zeroCrossIndex != -1)
             {
-                // Determine how many samples to copy after the zero-crossing.
-                int samplesToCopy = Math.Min(count - zeroCrossingIndex, waveformData.Length);
+                // To display ~8-10 full waves of a bass note (~100 Hz = 441 samples/wave -> 10 waves = ~4410 samples)
+                // across displayPoints.Length pixels (e.g. 325 px), step is ~10-12 samples per pixel.
+                float step = 10.0f;
+                float gain = 2.0f; // High amplitude filling ~80-85% height
 
-                // This is the recommended gain value. It provides good visibility without excessive clipping.
-                float gain = 1.0f; // A gain of 1.0f is a good starting point. Adjust as needed.
-
-                for (int i = 0; i < samplesToCopy; i++)
+                for (int x = 0; x < displayPoints.Length; x++)
                 {
-                    float sampleValue = buffer[offset + zeroCrossingIndex + i] * gain;
-
-                    // Clamp the value to the visible range [-1.0, 1.0].
-                    waveformData[i] = Math.Clamp(sampleValue, -1.0f, 1.0f);
+                    int sampleIdx = (zeroCrossIndex + (int)(x * step)) % sampleHistory.Length;
+                    float val = sampleHistory[sampleIdx] * gain;
+                    displayPoints[x] = Math.Clamp(val, -1.0f, 1.0f);
                 }
 
-                // This tells the drawing loop how many samples it has to work with.
-                dataIndex = samplesToCopy;
-
-                // Force a redraw of the control.
                 Invalidate();
             }
         }
-
-        // In WaveformViewer.cs
-
-        // In WaveformViewer.cs
 
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
 
-            if (waveformData == null || dataIndex == 0) return;
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            e.Graphics.Clear(Color.Black);
+            // Vibrant Royal Blue background (matching video screenshot)
+            g.Clear(Color.FromArgb(6, 68, 160));
 
-            Pen pen = new Pen(Color.LimeGreen);
-            float midY = Height / 2.0f;
-            float scaleX = (float)Width / waveformData.Length;
-            float scaleY = midY * 0.7f;
+            int w = Width;
+            int h = Height;
+            if (w <= 0 || h <= 0 || displayPoints == null || displayPoints.Length < 2) return;
 
-            for (int i = 0; i < dataIndex - 1; i++)
+            float midY = h * 0.5f;
+            float maxAmplitude = h * 0.42f;
+
+            // Subtle center zero-axis grid line
+            using (var gridPen = new Pen(Color.FromArgb(60, 255, 255, 255), 1.0f))
             {
-                float x1 = i * scaleX;
-                float y1 = midY - (waveformData[i] * scaleY);
-                float x2 = (i + 1) * scaleX;
-                float y2 = midY - (waveformData[i + 1] * scaleY);
+                gridPen.DashStyle = DashStyle.Dash;
+                g.DrawLine(gridPen, 0, midY, w, midY);
+            }
 
-                e.Graphics.DrawLine(pen, x1, y1, x2, y2);
+            // Build trace points
+            var points = new PointF[displayPoints.Length];
+            for (int x = 0; x < displayPoints.Length; x++)
+            {
+                float px = x * ((float)w / displayPoints.Length);
+                float py = midY - (displayPoints[x] * maxAmplitude);
+                points[x] = new PointF(px, py);
+            }
+
+            // Draw bright cyan/white glowing waveform line
+            using (var glowPen = new Pen(Color.FromArgb(70, 0, 220, 255), 4.5f))
+            {
+                g.DrawLines(glowPen, points);
+            }
+
+            using (var tracePen = new Pen(Color.FromArgb(220, 255, 255), 2.0f))
+            {
+                g.DrawLines(tracePen, points);
+            }
+
+            // Small header tag
+            using (var textBrush = new SolidBrush(Color.FromArgb(180, 220, 255)))
+            using (var font = new Font("Segoe UI", 7.5f, FontStyle.Bold))
+            {
+                g.DrawString("OSCILLOSCOPE (~10 WAVES)", font, textBrush, 6, 4);
             }
         }
     }

@@ -1,10 +1,11 @@
 using System;
-using System.Collections.Generic;
-using System.Windows.Forms;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 
 namespace audiosynth
@@ -13,138 +14,216 @@ namespace audiosynth
     {
         private readonly SynthEngine synthEngine;
 
-        // private int currentOctave = 0;
-        private int _currentOctave;
+        private int _currentOctave = 0;
 
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public int CurrentOctave
         {
             get => _currentOctave;
             set
             {
-                if (value < -4)
-                    _currentOctave = -4;
-                else if (value > 20)
-                    _currentOctave = 20;
-                else
-                    _currentOctave = value;
+                if (value < -3) _currentOctave = -3;
+                else if (value > 4) _currentOctave = 4;
+                else _currentOctave = value;
             }
         }
 
         private readonly Dictionary<Keys, float> noteFrequencies = new Dictionary<Keys, float>
         {
-            { Keys.C, 261.63f },
-            { Keys.D, 293.66f },
-            { Keys.E, 329.63f },
-            { Keys.F, 349.23f },
-            { Keys.G, 392.00f },
-            { Keys.A, 440.00f },
-            { Keys.B, 493.88f },
-             // Sharp notes
-            { Keys.Q, 277.18f }, // C#
-            { Keys.W, 311.13f }, // D#
-            { Keys.V, 369.99f }, // F#
-            { Keys.T, 415.30f }, // G#
-            { Keys.U, 466.16f }  // A#
+            { Keys.C, 130.81f },
+            { Keys.D, 146.83f },
+            { Keys.E, 164.81f },
+            { Keys.F, 174.61f },
+            { Keys.G, 196.00f },
+            { Keys.A, 220.00f },
+            { Keys.B, 246.94f },
+            { Keys.Q, 138.59f },
+            { Keys.W, 155.56f },
+            { Keys.V, 185.00f },
+            { Keys.T, 207.65f },
+            { Keys.U, 233.08f }
         };
 
-
-        // private readonly HashSet<Keys> heldKeys = new HashSet<Keys>();
-        // private readonly HashSet<(Keys key, bool alt)> heldKeys = new HashSet<(Keys, bool)>();
-        private HashSet<Keys> heldKeys = new HashSet<Keys>();
-
+        private readonly HashSet<Keys> heldKeys = new HashSet<Keys>();
         private readonly ConcurrentQueue<(string keyName, long timestamp)> keyHistory = new ConcurrentQueue<(string, long)>();
         private const int maxHistory = 10;
         private readonly ConcurrentQueue<NoteCommand> noteCommands = new ConcurrentQueue<NoteCommand>();
-        private CancellationTokenSource cts = new CancellationTokenSource();
-
+        private readonly CancellationTokenSource cts = new CancellationTokenSource();
         private readonly Dictionary<Keys, Timer> noteOffTimers = new Dictionary<Keys, Timer>();
-
-        private readonly HashSet<Keys> _heldKeys = new HashSet<Keys>();
-
         private readonly System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
+
+        // 16 Clickable Drum-Machine Style Step Buttons
+        private readonly Button[] stepButtons = new Button[16];
 
         public KeyPlayerForm()
         {
             InitializeComponent();
-            this.Text = "Synth Player";
             this.KeyPreview = true;
-            synthEngine = new SynthEngine(this.waveformViewer);
+
+            synthEngine = new SynthEngine(this.waveformViewer, this.spectrumViewer);
+
             PopulateWaveTypeComboBox();
-            PopulateFmMultiplierComboBox();
+            PopulateSubWaveComboBox();
+            BuildInteractiveStepButtons();
+            WireSequencerStepEvent();
             UpdateOctaveLabel();
+            UpdateSoundShapingButtonAppearance();
+            UpdateDrumsButtonAppearance();
+            UpdateChorusButtonAppearance();
 
-            ModulatorFrequencyTrackBar.Minimum = 100;
-            ModulatorFrequencyTrackBar.Maximum = 4400;
-            ModulatorFrequencyTrackBar.Value = 616;
-
-            modulationIndexTrackBar.Minimum = 0;
-            modulationIndexTrackBar.Maximum = 100;
-            modulationIndexTrackBar.Value = 17; // Represents 1.7
-            labelModulationIndex.Text = $"Modulation Index: 1.7"; // Update the label
-
-            // Set an initial value within the new range
             stopwatch.Start();
 
             Task.Run(() => ProcessNoteCommands(cts.Token));
         }
+
+        private void PopulateWaveTypeComboBox()
+        {
+            comboBoxWaveType.Items.Clear();
+            comboBoxWaveType.Items.Add(WaveType.Saw);
+            comboBoxWaveType.Items.Add(WaveType.Square);
+            comboBoxWaveType.Items.Add(WaveType.Sine);
+            comboBoxWaveType.Items.Add(WaveType.Triangle);
+            comboBoxWaveType.Items.Add(WaveType.FM);
+            comboBoxWaveType.Items.Add(WaveType.Noise);
+            comboBoxWaveType.Items.Add(WaveType.Pulse);
+            comboBoxWaveType.SelectedItem = WaveType.Saw;
+        }
+
+        private void PopulateSubWaveComboBox()
+        {
+            string[] waveNames = { "Copy Saw (Primary)", "Square Wave", "Sine Wave" };
+
+            cboSub1Wave.Items.Clear();
+            cboSub1Wave.Items.AddRange(waveNames);
+            cboSub1Wave.SelectedIndex = 0;
+
+            cboSub2Wave.Items.Clear();
+            cboSub2Wave.Items.AddRange(waveNames);
+            cboSub2Wave.SelectedIndex = 0;
+        }
+
+        private void BuildInteractiveStepButtons()
+        {
+            int colWidth = 36;
+            int rowHeight = 68;
+
+            for (int i = 0; i < 16; i++)
+            {
+                int index = i;
+                int row = i / 8;
+                int col = i % 8;
+
+                var btn = new Button
+                {
+                    Name = $"btnStep_{i}",
+                    Size = new Size(colWidth - 2, rowHeight - 4),
+                    Location = new Point(4 + (col * colWidth), 6 + (row * rowHeight)),
+                    Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    TabStop = false
+                };
+                btn.FlatAppearance.BorderSize = 1;
+                btn.FlatAppearance.BorderColor = Color.FromArgb(70, 80, 95);
+
+                btn.MouseDown += (s, e) =>
+                {
+                    if (e.Button == MouseButtons.Left)
+                    {
+                        synthEngine.Sequencer.ToggleStepActive(index);
+                    }
+                    else if (e.Button == MouseButtons.Right)
+                    {
+                        synthEngine.Sequencer.CycleStepNote(index);
+                    }
+                    UpdateStepButtonAppearance(index, index == synthEngine.Sequencer.CurrentStepIndex);
+                };
+
+                stepButtons[i] = btn;
+                pnlStepIndicators.Controls.Add(btn);
+                UpdateStepButtonAppearance(i, false);
+            }
+        }
+
+        private void UpdateAllStepButtons()
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                UpdateStepButtonAppearance(i, i == synthEngine.Sequencer.CurrentStepIndex);
+            }
+        }
+
+        private void UpdateStepButtonAppearance(int i, bool isPlayingCursor)
+        {
+            if (i < 0 || i >= 16) return;
+
+            bool isActive = synthEngine.Sequencer.IsStepActive(i);
+            int noteOffset = synthEngine.Sequencer.GetStepNoteOffset(i);
+
+            Button btn = stepButtons[i];
+            btn.Text = $"{i + 1}\r\n+{noteOffset}";
+
+            if (isPlayingCursor)
+            {
+                btn.BackColor = Color.FromArgb(80, 255, 120); // Bright Neon Lime
+                btn.ForeColor = Color.Black;
+            }
+            else if (isActive)
+            {
+                btn.BackColor = (i % 4 == 0) ? Color.FromArgb(245, 155, 45) : Color.FromArgb(215, 130, 35);
+                btn.ForeColor = Color.White;
+            }
+            else
+            {
+                btn.BackColor = (i % 4 == 0) ? Color.FromArgb(50, 56, 65) : Color.FromArgb(36, 40, 48);
+                btn.ForeColor = Color.Gray;
+            }
+        }
+
+        private void WireSequencerStepEvent()
+        {
+            synthEngine.Sequencer.StepTriggered += stepIndex =>
+            {
+                if (IsHandleCreated && !IsDisposed)
+                {
+                    try
+                    {
+                        BeginInvoke(new Action(() =>
+                        {
+                            for (int i = 0; i < 16; i++)
+                            {
+                                UpdateStepButtonAppearance(i, i == stepIndex);
+                            }
+                        }));
+                    }
+                    catch
+                    {
+                    }
+                }
+            };
+        }
+
+        private void ClearStepHighlights()
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                UpdateStepButtonAppearance(i, false);
+            }
+        }
+
         private void KeyPlayerForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             cts.Cancel();
+            synthEngine.StopAndDispose();
         }
-
-        //protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
-        //{
-        //    const int WM_KEYDOWN = 0x0100;
-        //    const int WM_KEYUP = 0x0101;
-
-        //    if (msg.Msg == WM_KEYDOWN)
-        //    {
-        //        // If the key is already in the set, it's a repeat. Return true to stop processing.
-        //        if (heldKeys.Contains(keyData))
-        //        {
-        //            return true;
-        //        }
-        //        // If it's not a repeat, add it to the set.
-        //        heldKeys.Add(keyData);
-        //    }
-        //    else if (msg.Msg == WM_KEYUP)
-        //    {
-        //        // The key has been released, so remove it from the set.
-        //        heldKeys.Remove(keyData);
-        //    }
-
-        //    return base.ProcessCmdKey(ref msg, keyData);
-        //}
-
-        private void PopulateFmMultiplierComboBox()
-        {
-            // Add common harmonic ratios to the ComboBox
-            comboBoxFmMultiplier.Items.Clear();
-            comboBoxFmMultiplier.Items.AddRange(new object[] { 1, 2, 3, 4, 5 });
-            comboBoxFmMultiplier.SelectedIndex = 0; // Default value is 1
-        }
-
-        private void comboBoxFmMultiplier_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (int.TryParse(comboBoxFmMultiplier.SelectedItem.ToString(), out int multiplier))
-            {
-                // Enqueue the command for the background thread to handle
-                noteCommands.Enqueue(new NoteCommand
-                {
-                    Action = NoteAction.UpdateFmMultiplier,
-                    Value = multiplier
-                });
-            }
-        }
-        // Inside KeyPlayerForm.cs
 
         private void ProcessNoteCommands(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                // 1. Process pending commands from the UI thread
-                while (noteCommands.TryDequeue(out NoteCommand command))
+                while (noteCommands.TryDequeue(out NoteCommand? command))
                 {
+                    if (command == null) continue;
+
                     switch (command.Action)
                     {
                         case NoteAction.NoteOn:
@@ -156,9 +235,11 @@ namespace audiosynth
                                 command.FmMultiplier
                             );
                             break;
+
                         case NoteAction.NoteOff:
                             synthEngine.NoteOff(command.KeyCode);
                             break;
+
                         case NoteAction.UpdateNote:
                             synthEngine.UpdateNote(
                                 command.KeyCode,
@@ -166,67 +247,43 @@ namespace audiosynth
                                 command.WaveType
                             );
                             break;
-                        case NoteAction.UpdateFmMultiplier:
-                            synthEngine.UpdateAllVoicesFmMultiplier(command.Value);
-                            break;
-                        case NoteAction.UpdateModulationIndex:
-                            synthEngine.UpdateAllVoicesModulationIndex(command.Value);
-                            break;
                     }
                 }
 
-                // 2. Perform periodic cleanup of voices in the release phase
                 synthEngine.CleanupReleasedVoices();
-
-                // 3. Briefly yield the thread to avoid 100% CPU usage
                 Thread.Sleep(1);
             }
         }
 
-        private void comboBoxWaveType_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            // This line tells the ComboBox to ignore the key press
-            e.Handled = true;
-        }
         private void KeyPlayerForm_KeyDown(object sender, KeyEventArgs e)
         {
-            // Handle special function keys first.
-
-            //Console.WriteLine("key: "+ e.KeyCode);
             if (e.KeyCode == Keys.X)
             {
                 CycleWaveType();
                 return;
             }
 
-            // The ProcessCmdKey override now handles key repeats. We just need to handle the first press.
-            // Check if the key is already in the heldKeys set. If it is, this KeyDown event is a repeat
-            // and we should do nothing.
+            if (e.KeyCode == Keys.MediaPreviousTrack || e.KeyCode == Keys.OemMinus || e.KeyCode == Keys.Subtract)
+            {
+                CurrentOctave--;
+                UpdateOctaveLabel();
+                return;
+            }
+
+            if (e.KeyCode == Keys.MediaNextTrack || e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add)
+            {
+                CurrentOctave++;
+                UpdateOctaveLabel();
+                return;
+            }
+
             if (!heldKeys.Add(e.KeyCode))
             {
                 return;
             }
 
-            if (e.KeyCode == Keys.MediaPreviousTrack)
-            {
-                CurrentOctave--;
-                UpdateOctaveLabel();
-                UpdateAllActiveNotes();
-                return;
-            }
-
-            if (e.KeyCode == Keys.MediaNextTrack)
-            {
-                CurrentOctave++;
-                UpdateOctaveLabel();
-                UpdateAllActiveNotes();
-                return;
-            }
-
-            // Process musical notes.
             if (noteFrequencies.TryGetValue(e.KeyCode, out float baseFrequency))
             {
-                // If there's an active NoteOff timer for this key, stop and dispose it.
                 if (noteOffTimers.TryGetValue(e.KeyCode, out var existingTimer))
                 {
                     existingTimer.Stop();
@@ -235,28 +292,18 @@ namespace audiosynth
                 }
 
                 float frequency = AdjustFrequencyForOctave(baseFrequency);
-                WaveType selectedWaveType = (WaveType)comboBoxWaveType.SelectedItem;
+                WaveType currentWaveType = (WaveType)(comboBoxWaveType.SelectedItem ?? WaveType.Saw);
 
-                // Get the current FM settings from the UI.
-                double currentModulationIndex = modulationIndexTrackBar.Value / 10.0;
-                double currentFmMultiplier = int.Parse(comboBoxFmMultiplier.SelectedItem.ToString());
-
-                // Enqueue the NoteOn command with the current UI settings.
                 noteCommands.Enqueue(new NoteCommand
                 {
                     Action = NoteAction.NoteOn,
                     KeyCode = e.KeyCode,
                     Frequency = frequency,
-                    WaveType = selectedWaveType,
-                    ModulationIndex = currentModulationIndex,
-                    FmMultiplier = currentFmMultiplier
+                    WaveType = currentWaveType
                 });
 
-                // Update UI for the new key press
-                //textBoxFoo.Text = e.KeyCode.ToString();
                 string keyName = e.KeyCode.ToString();
                 long timestamp = stopwatch.ElapsedMilliseconds;
-
 
                 if (keyHistory.Count >= maxHistory)
                 {
@@ -266,20 +313,25 @@ namespace audiosynth
                 UpdateKeyHistoryDisplay();
             }
         }
+
+        private void CycleWaveType()
+        {
+            int nextIndex = (comboBoxWaveType.SelectedIndex + 1) % comboBoxWaveType.Items.Count;
+            comboBoxWaveType.SelectedIndex = nextIndex;
+        }
+
         private void KeyPlayerForm_KeyUp(object sender, KeyEventArgs e)
         {
-            // Remove the key from the heldKeys set.
             if (heldKeys.Remove(e.KeyCode))
             {
                 if (noteFrequencies.ContainsKey(e.KeyCode))
                 {
-                    // Start a new timer for the released key
                     var timer = new Timer();
-                    timer.Interval = 150; // Delay in milliseconds (e.g., 50ms for a quick tap)
-                    timer.Tag = e.KeyCode; // Store the key code for later use
-                    timer.Tick += NoteOffTimer_Tick; // Assign the event handler
+                    timer.Interval = 50;
+                    timer.Tag = e.KeyCode;
+                    timer.Tick += NoteOffTimer_Tick;
 
-                    noteOffTimers[e.KeyCode] = timer; // Store the timer in the dictionary
+                    noteOffTimers[e.KeyCode] = timer;
                     timer.Start();
                 }
             }
@@ -293,68 +345,30 @@ namespace audiosynth
             }
             keyHistory.Enqueue((keyName, timestamp));
             UpdateKeyHistoryDisplay();
-
         }
 
-        // Inside KeyPlayerForm.cs
-
-        private void NoteOffTimer_Tick(object sender, EventArgs e)
+        private void NoteOffTimer_Tick(object? sender, EventArgs e)
         {
-            var timer = (Timer)sender;
-            timer.Stop(); // Stop the timer
-            timer.Dispose(); // Clean up the timer object
+            if (sender is not Timer timer) return;
 
-            Keys key = (Keys)timer.Tag; // Get the key code from the timer's tag
+            timer.Stop();
+            timer.Dispose();
 
-            if (noteOffTimers.ContainsKey(key))
+            if (timer.Tag is Keys key && noteOffTimers.ContainsKey(key))
             {
-                // Enqueue the NoteOff command
                 noteCommands.Enqueue(new NoteCommand
                 {
                     Action = NoteAction.NoteOff,
                     KeyCode = key
                 });
 
-                noteOffTimers.Remove(key); // Remove the timer from the dictionary
-            }
-        }
-
-        private void UpdateAllActiveNotes()
-        {
-            WaveType currentWaveType = (WaveType)comboBoxWaveType.SelectedItem;
-            foreach (var key in heldKeys)
-            {
-                if (noteFrequencies.TryGetValue(key, out float baseFrequency))
-                {
-                    float newFrequency = AdjustFrequencyForOctave(baseFrequency);
-                    noteCommands.Enqueue(new NoteCommand
-                    {
-                        Action = NoteAction.UpdateNote,
-                        KeyCode = key,
-                        Frequency = newFrequency,
-                        WaveType = currentWaveType
-                    });
-                }
+                noteOffTimers.Remove(key);
             }
         }
 
         private float AdjustFrequencyForOctave(float baseFreq)
         {
-            return (float)(baseFreq * Math.Pow(2, CurrentOctave));
-        }
-
-        private void PopulateWaveTypeComboBox()
-        {
-            comboBoxWaveType.DataSource = Enum.GetValues(typeof(WaveType));
-            comboBoxWaveType.SelectedIndex = 0;
-        }
-
-        private void CycleWaveType()
-        {
-            int nextIndex = (comboBoxWaveType.SelectedIndex + 1) % comboBoxWaveType.Items.Count;
-            comboBoxWaveType.SelectedIndex = nextIndex;
-
-            UpdateAllActiveNotes();
+            return (float)(baseFreq * Math.Pow(2.0, CurrentOctave));
         }
 
         private void UpdateKeyHistoryDisplay()
@@ -366,52 +380,345 @@ namespace audiosynth
 
         private void UpdateOctaveLabel()
         {
-            int displayOctave = 4 + CurrentOctave;
+            int displayOctave = 3 + CurrentOctave;
             labelOctave.Text = $"Octave: {displayOctave}";
+        }
+
+        private void btnOctaveDown_Click(object sender, EventArgs e)
+        {
+            CurrentOctave--;
+            UpdateOctaveLabel();
+        }
+
+        private void btnOctaveUp_Click(object sender, EventArgs e)
+        {
+            CurrentOctave++;
+            UpdateOctaveLabel();
         }
 
         private void Reset_Click(object sender, EventArgs e)
         {
             synthEngine.Reset();
             heldKeys.Clear();
-            //textBoxFoo.Text = string.Empty;
             textBoxHistory.Text = string.Empty;
+            ClearStepHighlights();
+            btnSeqPlayStop.Text = "▶ START SEQUENCER";
+            btnSeqPlayStop.BackColor = Color.ForestGreen;
+            WireSequencerStepEvent();
         }
 
-        private void volumeSlider1_Load(object sender, EventArgs e)
+        // =============================================================
+        // WAVEFORM & SOUND SHAPING TOGGLES
+        // =============================================================
+
+        private void comboBoxWaveType_SelectedIndexChanged(object sender, EventArgs e)
         {
-
-        }
-
-        private void ModulatorFrequencyTrackBar_Scroll(object sender, EventArgs e)
-        {
-            // The track bar's value will be used as the new modulator frequency
-            double newModFreq = ModulatorFrequencyTrackBar.Value;
-
-            // Update all currently playing notes
-            foreach (var keyId in heldKeys)
+            if (comboBoxWaveType.SelectedItem is WaveType selectedType)
             {
-                synthEngine.UpdateModulatorFrequency(keyId, newModFreq);
+                synthEngine.BassVoice.Waveform = selectedType;
             }
         }
 
-        private void label1_Click(object sender, EventArgs e)
+        private void btnSoundShapingToggle_Click(object sender, EventArgs e)
         {
-
+            bool newState = !synthEngine.BassVoice.SoundShapingEnabled;
+            synthEngine.BassVoice.SoundShapingEnabled = newState;
+            UpdateSoundShapingButtonAppearance();
         }
 
-        private void modulationIndexTrackBar_Scroll(object sender, EventArgs e)
+        private void UpdateSoundShapingButtonAppearance()
         {
-            // Scale the integer value to a more useful double value (e.g., 0.0 to 10.0)
-            double modulationIndex = modulationIndexTrackBar.Value / 10.0;
-            labelModulationIndex.Text = $"Modulation Index: {modulationIndex:F1}";
-
-            // Enqueue the command for the background thread
-            noteCommands.Enqueue(new NoteCommand
+            bool isShaping = synthEngine.BassVoice.SoundShapingEnabled;
+            if (isShaping)
             {
-                Action = NoteAction.UpdateModulationIndex,
-                Value = modulationIndex
-            });
+                btnSoundShapingToggle.Text = "⚡ SOUND SHAPING: ON (Filter & Sub)";
+                btnSoundShapingToggle.BackColor = Color.FromArgb(30, 140, 60); // Vibrant Green
+                labelWaveTypeMode.Text = "Mode: Shaped Sound (Resonant LPF Active)";
+                grpSynth.Text = "1. Sound Shaping (Subtractive Synth - Active)";
+            }
+            else
+            {
+                btnSoundShapingToggle.Text = "⚪ SOUND SHAPING: BYPASSED (Pure Wave)";
+                btnSoundShapingToggle.BackColor = Color.FromArgb(70, 75, 85); // Dim Slate Gray
+                labelWaveTypeMode.Text = "Mode: Pure Raw Wave (Filter & Sub Bypassed)";
+                grpSynth.Text = "1. Sound Shaping (BYPASSED - Pure Wave Mode)";
+            }
         }
+
+        private void chkAntiAliasing_CheckedChanged(object sender, EventArgs e)
+        {
+            synthEngine.BassVoice.UseAntiAliasing = chkAntiAliasing.Checked;
+        }
+
+        // =============================================================
+        // GROUP 1: ROTARY KNOB EVENT HANDLERS
+        // =============================================================
+
+        private void knobCutoff_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.BaseCutoff = knobCutoff.Value;
+        }
+
+        private void knobResonance_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Resonance = knobResonance.Value;
+        }
+
+        private void knobEnvMod_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.FilterEnvAmount = knobEnvMod.Value;
+        }
+
+        private void knobFilterDecay_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.FilterDecay = knobFilterDecay.Value;
+        }
+
+        private void knobSub1Mix_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Sub1Mix = knobSub1Mix.Value / 100.0f;
+        }
+
+        private void knobSub1Mix_BypassChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Sub1Bypassed = knobSub1Mix.IsBypassed;
+        }
+
+        private void knobSub2Mix_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Sub2Mix = knobSub2Mix.Value / 100.0f;
+        }
+
+        private void knobSub2Mix_BypassChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Sub2Bypassed = knobSub2Mix.IsBypassed;
+        }
+
+        private void knobAmpRelease_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.AmpRelease = knobAmpRelease.Value;
+        }
+
+        // =============================================================
+        // GROUP 2: SEQUENCER EVENT HANDLERS
+        // =============================================================
+
+        private void btnSeqPlayStop_Click(object sender, EventArgs e)
+        {
+            if (synthEngine.Sequencer.IsRunning)
+            {
+                synthEngine.Sequencer.Stop();
+                btnSeqPlayStop.Text = "▶ START SEQUENCER";
+                btnSeqPlayStop.BackColor = Color.ForestGreen;
+                ClearStepHighlights();
+            }
+            else
+            {
+                synthEngine.Sequencer.Start();
+                btnSeqPlayStop.Text = "⏹ STOP SEQUENCER";
+                btnSeqPlayStop.BackColor = Color.Crimson;
+            }
+        }
+
+        private void trackBarBpm_Scroll(object sender, EventArgs e)
+        {
+            int bpm = trackBarBpm.Value;
+            lblBpm.Text = $"Tempo: {bpm} BPM";
+            synthEngine.Sequencer.BPM = bpm;
+            synthEngine.Sequencer.RecalculateStepLength();
+        }
+
+        private void rbPattern_CheckedChanged(object sender, EventArgs e)
+        {
+            if (rbPatternA.Checked)
+            {
+                synthEngine.Sequencer.CurrentPatternChoice = SequencerPatternChoice.PatternA;
+            }
+            else if (rbPatternB.Checked)
+            {
+                synthEngine.Sequencer.CurrentPatternChoice = SequencerPatternChoice.PatternB;
+            }
+            UpdateAllStepButtons();
+        }
+
+        private void btnTransposeRoot_Click(object sender, EventArgs e)
+        {
+            synthEngine.Sequencer.TranspositionSemitones = 0;
+            btnTransposeRoot.BackColor = Color.LightSkyBlue;
+            btnTransposeFourth.BackColor = Color.WhiteSmoke;
+            btnTransposeFifth.BackColor = Color.WhiteSmoke;
+        }
+
+        private void btnTransposeFourth_Click(object sender, EventArgs e)
+        {
+            synthEngine.Sequencer.TranspositionSemitones = 5; // 4th
+            btnTransposeRoot.BackColor = Color.WhiteSmoke;
+            btnTransposeFourth.BackColor = Color.LightSkyBlue;
+            btnTransposeFifth.BackColor = Color.WhiteSmoke;
+        }
+
+        private void btnTransposeFifth_Click(object sender, EventArgs e)
+        {
+            synthEngine.Sequencer.TranspositionSemitones = 7; // 5th
+            btnTransposeRoot.BackColor = Color.WhiteSmoke;
+            btnTransposeFourth.BackColor = Color.WhiteSmoke;
+            btnTransposeFifth.BackColor = Color.LightSkyBlue;
+        }
+
+        // =============================================================
+        // GROUP 3: BACKING DRUMS & FX EVENT HANDLERS (KNOBS & TOGGLES)
+        // =============================================================
+
+        private void btnDrumsToggle_Click(object sender, EventArgs e)
+        {
+            synthEngine.Drums.IsEnabled = !synthEngine.Drums.IsEnabled;
+            UpdateDrumsButtonAppearance();
+        }
+
+        private void UpdateDrumsButtonAppearance()
+        {
+            if (synthEngine.Drums.IsEnabled)
+            {
+                btnDrumsToggle.Text = "🥁 DRUM MACHINE: ON (Synced)";
+                btnDrumsToggle.BackColor = Color.FromArgb(40, 120, 180);
+            }
+            else
+            {
+                btnDrumsToggle.Text = "⚪ DRUM MACHINE: MUTED";
+                btnDrumsToggle.BackColor = Color.FromArgb(70, 75, 85);
+            }
+        }
+
+        private void btnChorusToggle_Click(object sender, EventArgs e)
+        {
+            synthEngine.Chorus.IsEnabled = !synthEngine.Chorus.IsEnabled;
+            UpdateChorusButtonAppearance();
+        }
+
+        private void UpdateChorusButtonAppearance()
+        {
+            if (synthEngine.Chorus.IsEnabled)
+            {
+                btnChorusToggle.Text = "✨ STEREO CHORUS: ON (Width)";
+                btnChorusToggle.BackColor = Color.FromArgb(100, 60, 160);
+            }
+            else
+            {
+                btnChorusToggle.Text = "⚪ STEREO CHORUS: BYPASSED";
+                btnChorusToggle.BackColor = Color.FromArgb(70, 75, 85);
+            }
+        }
+
+        private void knobKickVol_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.Drums.KickVolume = knobKickVol.Value / 100.0f;
+        }
+
+        private void knobSnareHatVol_ValueChanged(object? sender, EventArgs e)
+        {
+            float vol = knobSnareHatVol.Value / 100.0f;
+            synthEngine.Drums.SnareVolume = vol;
+            synthEngine.Drums.HatVolume = vol * 0.8f;
+        }
+
+        private void knobChorusDepth_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.Chorus.WetMix = knobChorusDepth.Value / 100.0f;
+        }
+
+        private void knobMasterVol_ValueChanged(object? sender, EventArgs e)
+        {
+            synthEngine.Groovebox.MasterVolume = knobMasterVol.Value / 100.0f;
+        }
+
+        // =============================================================
+        // KNOB BYPASS HANDLERS (Right-Click on Knob)
+        // =============================================================
+
+        private void knobCutoff_BypassChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.CutoffBypassed = knobCutoff.IsBypassed;
+            UpdateSoundShapingButtonAppearance();
+        }
+
+        private void knobResonance_BypassChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.ResonanceBypassed = knobResonance.IsBypassed;
+        }
+
+        private void knobEnvMod_BypassChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.EnvModBypassed = knobEnvMod.IsBypassed;
+        }
+
+        // =============================================================
+        // SUB WAVEFORM DROPDOWNS (new cboSub1Wave / cboSub2Wave)
+        // =============================================================
+
+        private void cboSub1Wave_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Sub1Waveform = cboSub1Wave.SelectedIndex switch
+            {
+                1 => SubOscWaveType.Square,
+                2 => SubOscWaveType.Sine,
+                _ => SubOscWaveType.CopyPrimary
+            };
+        }
+
+        private void cboSub2Wave_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            synthEngine.BassVoice.Sub2Waveform = cboSub2Wave.SelectedIndex switch
+            {
+                1 => SubOscWaveType.Square,
+                2 => SubOscWaveType.Sine,
+                _ => SubOscWaveType.CopyPrimary
+            };
+        }
+
+        // =============================================================
+        // ARPEGGIATOR / CUSTOM PITCH SEQUENCE
+        // =============================================================
+
+        private void btnApplyArp_Click(object? sender, EventArgs e)
+        {
+            string csv = txtArpOffsets.Text.Trim();
+            if (string.IsNullOrEmpty(csv)) return;
+
+            synthEngine.Sequencer.ApplyCustomPitchSequence(csv);
+            UpdateAllStepButtons();
+        }
+
+        // =============================================================
+        // KNOB DESCRIPTION HOVER BAR
+        // =============================================================
+
+        private void OnKnobHovered(object? sender, string description)
+        {
+            if (InvokeRequired)
+                BeginInvoke(new Action(() => lblKnobDescription.Text = description));
+            else
+                lblKnobDescription.Text = description;
+        }
+
+        // Legacy compatibility stubs
+        private void comboBoxWaveType_KeyPress(object sender, KeyPressEventArgs e) => e.Handled = true;
+        private void comboBoxFmMultiplier_SelectedIndexChanged(object sender, EventArgs e) { }
+        private void ModulatorFrequencyTrackBar_Scroll(object sender, EventArgs e) { }
+        private void modulationIndexTrackBar_Scroll(object sender, EventArgs e) { }
+        private void label1_Click(object sender, EventArgs e) { }
+        private void chkSoundShaping_CheckedChanged(object sender, EventArgs e) { }
+        private void chkSubSquare_CheckedChanged(object sender, EventArgs e) { }
+        private void chkDrumsEnabled_CheckedChanged(object sender, EventArgs e) { }
+        private void chkChorusEnabled_CheckedChanged(object sender, EventArgs e) { }
+        private void trackBarCutoff_Scroll(object sender, EventArgs e) { }
+        private void trackBarResonance_Scroll(object sender, EventArgs e) { }
+        private void trackBarEnvMod_Scroll(object sender, EventArgs e) { }
+        private void trackBarFilterDecay_Scroll(object sender, EventArgs e) { }
+        private void trackBarSubMix_Scroll(object sender, EventArgs e) { }
+        private void trackBarAmpRelease_Scroll(object sender, EventArgs e) { }
+        private void trackBarKickVol_Scroll(object sender, EventArgs e) { }
+        private void trackBarSnareHatVol_Scroll(object sender, EventArgs e) { }
+        private void trackBarChorusDepth_Scroll(object sender, EventArgs e) { }
+        private void trackBarMasterVol_Scroll(object sender, EventArgs e) { }
     }
 }

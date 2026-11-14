@@ -1,42 +1,41 @@
 ﻿using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
-using System.Collections.Concurrent;
 using System.Windows.Forms;
 
 namespace audiosynth
 {
+    /// <summary>
+    /// Master Audio Engine orchestrating the Groovebox sound engine:
+    /// MonoBassVoice, StepSequencer, DrumMachine, and StereoChorus,
+    /// feeding into NAudio WaveOut, WaveformViewer oscilloscope, and SpectrumViewer FFT bars.
+    /// </summary>
     public class SynthEngine
     {
-        private MixingSampleProvider mixer;
         private IWavePlayer waveOut;
-        private readonly ConcurrentDictionary<Keys, VoiceProvider> activeVoices;
+        private readonly WaveformViewer viewer;
+        private readonly SpectrumViewer? spectrumViewer;
 
-        private readonly ConcurrentBag<VoiceProvider> voicesInRelease = new ConcurrentBag<VoiceProvider>();
+        public MasterGrooveboxProvider Groovebox { get; private set; }
+        public MonoBassVoice BassVoice => Groovebox.BassVoice;
+        public StepSequencer Sequencer => Groovebox.Sequencer;
+        public DrumMachine Drums => Groovebox.Drums;
+        public StereoChorus Chorus => Groovebox.Chorus;
 
-        public SynthEngine(WaveformViewer viewer)
+        public SynthEngine(WaveformViewer viewer, SpectrumViewer? spectrumViewer = null)
         {
-            var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
-            mixer = new MixingSampleProvider(waveFormat);
-            mixer.ReadFully = true;
+            this.viewer = viewer;
+            this.spectrumViewer = spectrumViewer;
+            Groovebox = new MasterGrooveboxProvider(44100);
 
             waveOut = new WaveOutEvent();
-            waveOut.Init(new VisualizationSampleProvider(mixer, viewer));
+            waveOut.Init(new VisualizationSampleProvider(Groovebox, viewer, spectrumViewer));
             waveOut.Play();
-
-            activeVoices = new ConcurrentDictionary<Keys, VoiceProvider>();
         }
 
         public void StopAndDispose()
         {
-            // Stop all currently playing notes
-            foreach (var voice in activeVoices.Values)
-            {
-                voice.Stop();
-            }
-            activeVoices.Clear();
+            Groovebox.Sequencer.Stop();
+            Groovebox.BassVoice.Stop();
 
-            // Dispose of the mixer input and the WaveOut device
-            mixer.RemoveAllMixerInputs();
             waveOut.Stop();
             waveOut.Dispose();
         }
@@ -45,120 +44,61 @@ namespace audiosynth
         {
             StopAndDispose();
 
-            // Re-initialize the audio engine
-            var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
-            mixer = new MixingSampleProvider(waveFormat);
-            mixer.ReadFully = true;
-
+            Groovebox = new MasterGrooveboxProvider(44100);
             waveOut = new WaveOutEvent();
-            waveOut.Init(mixer);
+            waveOut.Init(new VisualizationSampleProvider(Groovebox, viewer, spectrumViewer));
             waveOut.Play();
         }
-        public void NoteOn(Keys key, float frequency, WaveType waveType, double modulationIndex, double fmMultiplier)
-        {  // Ensure any existing note for this key is completely stopped
-            NoteOff(key);
 
-            // Create and add the new voice
-            var newVoice = new VoiceProvider(frequency, waveType)
-            {
-                ModulationIndex = modulationIndex,
-                ModulatorFrequencyMultiplier = fmMultiplier
-            };
-            mixer.AddMixerInput(newVoice);
-            activeVoices.TryAdd(key, newVoice);
+        public void NoteOn(Keys key, float frequency, WaveType waveType = WaveType.Saw, double modulationIndex = 1.0, double fmMultiplier = 1.0)
+        {
+            Groovebox.BassVoice.Waveform = waveType;
+            Groovebox.BassVoice.NoteOn(frequency);
         }
 
         public void NoteOff(Keys key)
         {
-            if (activeVoices.TryRemove(key, out var voice))
-            {
-                voice.Stop(); // Sets ADSR to Release state
-                voicesInRelease.Add(voice);
-            }
+            Groovebox.BassVoice.NoteOff();
         }
 
         public void UpdateNote(Keys key, float newFrequency, WaveType newWaveType)
         {
-            if (activeVoices.TryGetValue(key, out var voice))
-            {
-                voice.Frequency = newFrequency;
-                voice.Type = newWaveType;
-            }
+            Groovebox.BassVoice.Frequency = newFrequency;
+            Groovebox.BassVoice.Waveform = newWaveType;
         }
 
         public float GetNoteFrequency(Keys key)
         {
-            if (activeVoices.TryGetValue(key, out var voice))
-            {
-                return (float)voice.Frequency;
-            }
-            return 0f;
+            return (float)Groovebox.BassVoice.Frequency;
         }
 
-        public void UpdateModulatorFrequency(Keys key, double newModFreq)
-        {
-            if (activeVoices.TryGetValue(key, out var voice))
-            {
-                voice.ModulatorFrequency = newModFreq;
-            }
-        }
         public void UpdateNoteFrequency(Keys key, float newFrequency)
         {
-            if (activeVoices.TryGetValue(key, out var voice))
-            {
-                voice.Frequency = newFrequency;
-            }
+            Groovebox.BassVoice.Frequency = newFrequency;
         }
 
         public void UpdateNoteWaveType(Keys key, WaveType newWaveType)
         {
-            if (activeVoices.TryGetValue(key, out var voice))
-            {
-                voice.Type = newWaveType;
-            }
+            Groovebox.BassVoice.Waveform = newWaveType;
+        }
+
+        public void UpdateModulatorFrequency(Keys key, double newModFreq)
+        {
+            Groovebox.BassVoice.BaseCutoff = newModFreq;
         }
 
         public void UpdateAllVoicesFmMultiplier(double multiplier)
         {
-            foreach (var voice in activeVoices.Values)
-            {
-                voice.ModulatorFrequencyMultiplier = multiplier;
-            }
+            Groovebox.BassVoice.Resonance = multiplier * 2.0;
         }
 
         public void UpdateAllVoicesModulationIndex(double index)
         {
-            foreach (var voice in activeVoices.Values)
-            {
-                voice.ModulationIndex = index;
-            }
+            Groovebox.BassVoice.FilterEnvAmount = index;
         }
 
-        public void RemoveVoice(VoiceProvider voice)
-        {
-            mixer.RemoveMixerInput(voice);
-            voice.Dispose(); // Best practice
-        }
-
-        // Inside SynthEngine.cs
         public void CleanupReleasedVoices()
         {
-            var finishedVoices = new List<VoiceProvider>();
-            foreach (var voice in voicesInRelease)
-            {
-                if (voice.IsFinished()) // You will need to add this IsFinished method to VoiceProvider
-                {
-                    finishedVoices.Add(voice);
-                }
-            }
-            foreach (var voice in finishedVoices)
-            {
-                if (voicesInRelease.TryTake(out _)) // Attempt to remove from the bag
-                {
-                    // This voice is finished and should be removed from the mixer
-                    mixer.RemoveMixerInput(voice);
-                }
-            }
         }
     }
 }

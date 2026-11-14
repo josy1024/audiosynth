@@ -1,29 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using NAudio.Wave;
-using System.Drawing;
-using System.Windows.Forms;
+﻿using NAudio.Wave;
 
 namespace audiosynth
 {
-    // VisualizationSampleProvider.cs (create a new class)
-
     public class VisualizationSampleProvider : ISampleProvider
     {
         private readonly ISampleProvider source;
-        private readonly WaveformViewer viewer;
+        private readonly WaveformViewer? waveViewer;
+        private readonly SpectrumViewer? spectrumViewer;
 
         public WaveFormat WaveFormat => source.WaveFormat;
 
-        public VisualizationSampleProvider(ISampleProvider source, WaveformViewer viewer)
+        public VisualizationSampleProvider(ISampleProvider source, WaveformViewer? waveViewer, SpectrumViewer? spectrumViewer = null)
         {
             this.source = source;
-            this.viewer = viewer;
+            this.waveViewer = waveViewer;
+            this.spectrumViewer = spectrumViewer;
         }
-
 
         public int Read(float[] buffer, int offset, int sampleCount)
         {
@@ -31,15 +23,11 @@ namespace audiosynth
 
             if (samplesRead > 0)
             {
-                Console.WriteLine(buffer[0]);
+                waveViewer?.AddSamples(buffer, offset, samplesRead, WaveFormat.Channels);
+                spectrumViewer?.AddSamples(buffer, offset, samplesRead, WaveFormat.Channels);
             }
-
-            // This is the crucial line. Make sure it's correct.
-            viewer.AddSamples(buffer, offset, samplesRead);
 
             return samplesRead;
         }
-
-
     }
 }
