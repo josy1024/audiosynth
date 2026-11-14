@@ -11,3 +11,8 @@
   * Relaunched 3-panel UI: Sound Shaping, Sequencer & Performance, Backing Drums & Master FX
 * v0.0.2 VisualizationSampleProvider
 * v0.0.1 Initial Release
+
+## howto
+
+git tag --annotate v0.0.6 --message "Release v0.0.6"
+git push origin refs/tags/v0.0.6
