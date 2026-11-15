@@ -7,6 +7,10 @@
 * knobs
 * cutoff LFO Filter
 
+## needs fix
+
+* bypass to normal mode does activate knob input shaping
+
 ## planned
 
 * BPM slider to knob
